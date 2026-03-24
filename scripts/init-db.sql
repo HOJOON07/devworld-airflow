@@ -91,3 +91,4 @@ INSERT INTO crawl_sources (id, name, source_type, base_url, feed_url, is_active)
     ('a1000000-0000-0000-0000-000000000006', 'daangn-tech', 'rss',
      'https://medium.com/daangn', 'https://medium.com/feed/daangn', true)
 ON CONFLICT (id) DO NOTHING;
+dl

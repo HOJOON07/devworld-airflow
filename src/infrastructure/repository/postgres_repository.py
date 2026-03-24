@@ -194,6 +194,25 @@ class PostgresCrawlSourceRepository:
             created_at=row["created_at"],
         )
 
+    def find_all(self) -> list[CrawlSource]:
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                text("SELECT * FROM crawl_sources")
+            ).mappings().all()
+        return [
+            CrawlSource(
+                id=row["id"],
+                name=row["name"],
+                source_type=row["source_type"],
+                base_url=row["base_url"],
+                feed_url=row["feed_url"],
+                crawl_config=json.loads(row["crawl_config"]) if row.get("crawl_config") else None,
+                is_active=row["is_active"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
     def find_active(self) -> list[CrawlSource]:
         with self._engine.connect() as conn:
             rows = conn.execute(

@@ -24,6 +24,7 @@ sqlalchemy>=2.0.0
 
 # Shared
 python-dotenv>=1.0.0
+pyyaml>=6.0
 
 # Dev / Test
 pytest>=8.0.0
