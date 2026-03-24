@@ -1,0 +1,13 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "deny": [
+      "Edit(.env*)",
+      "Edit(**/secrets/*)",
+      "Bash(rm -rf:*)",
+      "Bash(terraform apply:*)"
+    ]
+  }
+}

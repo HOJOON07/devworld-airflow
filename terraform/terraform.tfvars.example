@@ -1,0 +1,22 @@
+# Copy this file to terraform.tfvars and fill in actual values
+
+aws_region  = "ap-northeast-2"
+environment = "prod"
+
+# VPC
+vpc_cidr             = "10.0.0.0/16"
+availability_zones   = ["ap-northeast-2a", "ap-northeast-2c"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.11.0/24"]
+
+# ECS
+webserver_cpu    = 512
+webserver_memory = 1024
+scheduler_cpu    = 512
+scheduler_memory = 1024
+
+# RDS
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+db_name              = "airflow_db"
+db_username          = "devworld"

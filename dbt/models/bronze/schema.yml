@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw data loaded by dlt pipeline
+    tables:
+      - name: articles
+        description: Raw articles loaded from crawl pipeline
+
+models:
+  - name: stg_articles
+    description: Staged articles with basic type casting
+    columns:
+      - name: id
+        description: Article UUID
+        tests:
+          - unique
+          - not_null
+      - name: url
+        description: Article URL
+        tests:
+          - not_null
+      - name: source_id
+        description: Reference to crawl source
+        tests:
+          - not_null

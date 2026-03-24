@@ -1,0 +1,7 @@
+{
+    "environment": "local",
+    "raw_bucket": "devworld-raw",
+    "bronze_bucket": "devworld-bronze",
+    "silver_bucket": "devworld-silver",
+    "gold_analytics_bucket": "devworld-gold-analytics"
+}

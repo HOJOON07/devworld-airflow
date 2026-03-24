@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: mart_articles
+    description: Article mart for product serving (Gold layer)
+    columns:
+      - name: id
+        description: Article UUID
+        tests:
+          - unique
+          - not_null
+      - name: title
+        description: Article title
+        tests:
+          - not_null
+      - name: url
+        description: Article URL
+        tests:
+          - unique
+          - not_null

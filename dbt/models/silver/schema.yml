@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: int_articles_cleaned
+    description: Cleaned and deduplicated articles (silver layer)
+    columns:
+      - name: id
+        description: Article UUID
+        tests:
+          - not_null
+      - name: content_hash
+        description: SHA-256 hash of content_text for deduplication
+        tests:
+          - unique
+          - not_null
+      - name: url
+        description: Article URL
+        tests:
+          - not_null

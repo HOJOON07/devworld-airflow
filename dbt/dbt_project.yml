@@ -1,0 +1,25 @@
+name: devworld
+version: "1.0.0"
+
+profile: devworld
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  devworld:
+    bronze:
+      +materialized: view
+      +schema: bronze
+    silver:
+      +materialized: table
+      +schema: silver
+    gold:
+      +materialized: table
+      +schema: gold
