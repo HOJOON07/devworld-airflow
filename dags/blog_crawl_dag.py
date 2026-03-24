@@ -1,7 +1,7 @@
-"""Blog Crawl DAG — orchestrates tech blog crawling pipeline.
+"""Blog Crawl DAG — crawls a single source manually.
 
-Thin DAG: all business logic lives in src/ modules.
-Parameterized by source_name and partition_date for backfill support.
+Parameterized by source_name and partition_date.
+Handles both RSS with content:encoded and without.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from airflow.models.param import Param
 
 @dag(
     dag_id="blog_crawl",
-    schedule="@daily",
+    schedule=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["crawl", "blog"],
@@ -22,7 +22,7 @@ from airflow.models.param import Param
         "source_name": Param(
             default="",
             type="string",
-            description="CrawlSource name (e.g. kakao-tech, naver-d2)",
+            description="CrawlSource name (e.g. toss-tech, daangn-tech)",
         ),
         "partition_date": Param(
             default="",
@@ -33,127 +33,91 @@ from airflow.models.param import Param
 )
 def blog_crawl():
     @task()
-    def discover(**context) -> list[str]:
-        """Discover new article URLs from the source feed."""
+    def crawl(**context) -> dict:
+        """Run full crawl for a single source."""
         from src.application.discovery_service import DiscoveryService
-        from src.infrastructure.fetcher.http_fetcher import HttpFetcher
-        from src.infrastructure.parser.factory import get_parser
-        from src.infrastructure.repository.postgres_repository import (
-            PostgresArticleRepository,
-            PostgresCrawlSourceRepository,
-        )
-        from src.shared.config import Config
-
-        params = context["params"]
-        source_name = params["source_name"]
-
-        config = Config()
-        source_repo = PostgresCrawlSourceRepository(config.database.url)
-        source = source_repo.find_by_name(source_name)
-        if not source:
-            raise ValueError(f"Source not found: {source_name}")
-
-        service = DiscoveryService(
-            fetcher=HttpFetcher(),
-            parser=get_parser(source.source_type),
-            article_repo=PostgresArticleRepository(config.database.url),
-        )
-        return service.discover(source)
-
-    @task()
-    def fetch(urls: list[str], **context) -> list[dict]:
-        """Fetch raw content and store to R2/MinIO."""
         from src.application.fetch_service import FetchService
-        from src.infrastructure.fetcher.http_fetcher import HttpFetcher
-        from src.infrastructure.repository.postgres_repository import (
-            PostgresArticleRepository,
-            PostgresCrawlSourceRepository,
-        )
-        from src.infrastructure.storage.s3_storage import S3Storage
-        from src.shared.config import Config
-
-        params = context["params"]
-        source_name = params["source_name"]
-        partition_date = params.get("partition_date") or context["ds"]
-
-        config = Config()
-        source_repo = PostgresCrawlSourceRepository(config.database.url)
-        source = source_repo.find_by_name(source_name)
-        if not source:
-            raise ValueError(f"Source not found: {source_name}")
-
-        service = FetchService(
-            fetcher=HttpFetcher(),
-            storage=S3Storage(config.storage),
-            article_repo=PostgresArticleRepository(config.database.url),
-            raw_bucket=config.storage.raw_bucket,
-        )
-        articles = service.fetch_and_store(urls, source.id, source.name, partition_date)
-        return [
-            {"id": a.id, "raw_storage_key": a.raw_storage_key}
-            for a in articles
-        ]
-
-    @task()
-    def parse(article_refs: list[dict], **context) -> int:
-        """Parse raw content into structured articles."""
         from src.application.parse_service import ParseService
-        from src.infrastructure.parser.factory import get_content_parser
+        from src.infrastructure.fetcher.http_fetcher import HttpFetcher
+        from src.infrastructure.parser.factory import get_content_parser, get_parser
         from src.infrastructure.repository.postgres_repository import (
             PostgresArticleRepository,
             PostgresCrawlSourceRepository,
         )
         from src.infrastructure.storage.s3_storage import S3Storage
         from src.shared.config import Config
-
-        params = context["params"]
-        source_name = params["source_name"]
-
-        config = Config()
-        article_repo = PostgresArticleRepository(config.database.url)
-        source_repo = PostgresCrawlSourceRepository(config.database.url)
-
-        source = source_repo.find_by_name(source_name)
-        if not source:
-            raise ValueError(f"Source not found: {source_name}")
-
-        articles = []
-        for ref in article_refs:
-            article = article_repo.find_by_id(ref["id"])
-            if article:
-                articles.append(article)
-
-        service = ParseService(
-            parser=get_content_parser(),
-            storage=S3Storage(config.storage),
-            article_repo=article_repo,
-            raw_bucket=config.storage.raw_bucket,
-        )
-        parsed = service.parse_articles(articles, source.source_type)
-        return len(parsed)
-
-    @task()
-    def load(parsed_count: int, **context) -> None:
-        """Load parsed articles via dlt (placeholder)."""
         from src.shared.logging import setup_logging
 
         params = context["params"]
         source_name = params["source_name"]
         partition_date = params.get("partition_date") or context["ds"]
 
-        logger = setup_logging("blog_crawl.load")
-        logger.info(
-            "Load step: %d articles for source=%s date=%s (dlt integration pending)",
-            parsed_count,
-            source_name,
-            partition_date,
-        )
+        logger = setup_logging(f"blog_crawl.{source_name}")
 
-    # Task flow
-    discovered_urls = discover()
-    fetched_refs = fetch(urls=discovered_urls)
-    parsed_count = parse(article_refs=fetched_refs)
-    load(parsed_count=parsed_count)
+        config = Config()
+        source_repo = PostgresCrawlSourceRepository(config.database.url)
+        article_repo = PostgresArticleRepository(config.database.url)
+        storage = S3Storage(config.storage)
+        source = source_repo.find_by_name(source_name)
+        if not source:
+            raise ValueError(f"Source not found: {source_name}")
+
+        # 1. Discover
+        logger.info("[discover] source=%s", source_name)
+        discovery = DiscoveryService(
+            fetcher=HttpFetcher(),
+            parser=get_parser(source.source_type),
+            article_repo=article_repo,
+            storage=storage,
+            raw_bucket=config.storage.raw_bucket,
+        )
+        disc_result = discovery.discover(source, partition_date)
+
+        if disc_result.total_new == 0:
+            logger.info("No new articles for source=%s", source_name)
+            return {"source": source_name, "discovered": 0, "fetched": 0, "parsed": 0}
+
+        all_articles = list(disc_result.saved_articles)
+
+        # 2. Fetch (content:encoded 없는 URL만)
+        if disc_result.urls_to_fetch:
+            logger.info("[fetch] %d URLs for source=%s", len(disc_result.urls_to_fetch), source_name)
+            fetch_service = FetchService(
+                fetcher=HttpFetcher(),
+                storage=storage,
+                article_repo=article_repo,
+                raw_bucket=config.storage.raw_bucket,
+            )
+            fetched = fetch_service.fetch_and_store(
+                disc_result.urls_to_fetch, source.id, source.name, partition_date
+            )
+            all_articles.extend(fetched)
+
+        # 3. Parse (fetch한 것만 — RSS content는 이미 저장됨)
+        articles_to_parse = [a for a in all_articles if a not in disc_result.saved_articles]
+        parsed_count = len(disc_result.saved_articles)
+
+        if articles_to_parse:
+            logger.info("[parse] %d articles for source=%s", len(articles_to_parse), source_name)
+            parse_service = ParseService(
+                parser=get_content_parser(),
+                storage=storage,
+                article_repo=article_repo,
+                raw_bucket=config.storage.raw_bucket,
+            )
+            parsed = parse_service.parse_articles(articles_to_parse, source.source_type)
+            parsed_count += len(parsed)
+
+        result = {
+            "source": source_name,
+            "discovered": disc_result.total_new,
+            "fetched": len(all_articles),
+            "parsed": parsed_count,
+        }
+        logger.info("[done] %s", result)
+        return result
+
+    crawl()
 
 
 blog_crawl()

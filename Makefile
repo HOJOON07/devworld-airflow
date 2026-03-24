@@ -1,4 +1,4 @@
-.PHONY: up down build logs test lint format clean db-reset
+.PHONY: up down build logs test lint format clean db-reset dag-apply dag-list articles-reset
 
 # Docker
 up:
@@ -43,6 +43,21 @@ db-reset:
 	@echo "Waiting for postgres..."
 	@sleep 3
 	docker compose up -d
+
+# Airflow DAG
+dag-apply:
+	docker compose exec airflow-scheduler airflow dags reserialize
+
+dag-list:
+	docker compose exec airflow-scheduler airflow dags list
+
+# Articles
+articles-reset:
+	docker compose exec postgres psql -U airflow -d app_db -c "DELETE FROM articles; DELETE FROM crawl_jobs"
+
+articles-reset-source:
+	@test -n "$(SOURCE)" || (echo "Usage: make articles-reset-source SOURCE=toss-tech" && exit 1)
+	docker compose exec postgres psql -U airflow -d app_db -c "DELETE FROM articles WHERE source_id = (SELECT id FROM crawl_sources WHERE name='$(SOURCE)'); DELETE FROM crawl_jobs WHERE source_id = (SELECT id FROM crawl_sources WHERE name='$(SOURCE)');"
 
 # Clean
 clean:

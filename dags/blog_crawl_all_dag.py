@@ -84,46 +84,59 @@ def blog_crawl_all():
         job_repo.save(job)
 
         try:
-            # 1. Discover
+            storage = S3Storage(config.storage)
+
+            # 1. Discover (RSS content:encoded 있으면 바로 저장됨)
             logger.info("[discover] source=%s", source_name)
             discovery = DiscoveryService(
                 fetcher=HttpFetcher(),
                 parser=get_parser(source.source_type),
                 article_repo=article_repo,
+                storage=storage,
+                raw_bucket=config.storage.raw_bucket,
             )
-            urls = discovery.discover(source)
-            job.discovered_count = len(urls)
+            disc_result = discovery.discover(source, partition_date)
+            job.discovered_count = disc_result.total_new
 
-            if not urls:
-                logger.info("No new URLs for source=%s", source_name)
+            if disc_result.total_new == 0:
+                logger.info("No new articles for source=%s", source_name)
                 job.status = "success"
                 job.completed_at = datetime.utcnow()
                 job_repo.save(job)
                 return {"source": source_name, "discovered": 0, "fetched": 0, "parsed": 0}
 
-            # 2. Fetch
-            logger.info("[fetch] %d URLs for source=%s", len(urls), source_name)
-            fetch_service = FetchService(
-                fetcher=HttpFetcher(),
-                storage=S3Storage(config.storage),
-                article_repo=article_repo,
-                raw_bucket=config.storage.raw_bucket,
-            )
-            articles = fetch_service.fetch_and_store(
-                urls, source.id, source.name, partition_date
-            )
-            job.fetched_count = len(articles)
+            all_articles = list(disc_result.saved_articles)
 
-            # 3. Parse
-            logger.info("[parse] %d articles for source=%s", len(articles), source_name)
-            parse_service = ParseService(
-                parser=get_content_parser(),
-                storage=S3Storage(config.storage),
-                article_repo=article_repo,
-                raw_bucket=config.storage.raw_bucket,
-            )
-            parsed = parse_service.parse_articles(articles, source.source_type)
-            job.parsed_count = len(parsed)
+            # 2. Fetch (content:encoded 없는 URL만 HTTP fetch)
+            if disc_result.urls_to_fetch:
+                logger.info("[fetch] %d URLs for source=%s", len(disc_result.urls_to_fetch), source_name)
+                fetch_service = FetchService(
+                    fetcher=HttpFetcher(),
+                    storage=storage,
+                    article_repo=article_repo,
+                    raw_bucket=config.storage.raw_bucket,
+                )
+                fetched = fetch_service.fetch_and_store(
+                    disc_result.urls_to_fetch, source.id, source.name, partition_date
+                )
+                all_articles.extend(fetched)
+            job.fetched_count = len(all_articles)
+
+            # 3. Parse (fetch한 것만 — RSS content는 이미 파싱됨)
+            articles_to_parse = [a for a in all_articles if a not in disc_result.saved_articles]
+            parsed_count = len(disc_result.saved_articles)  # RSS content는 이미 파싱됨
+
+            if articles_to_parse:
+                logger.info("[parse] %d articles for source=%s", len(articles_to_parse), source_name)
+                parse_service = ParseService(
+                    parser=get_content_parser(),
+                    storage=storage,
+                    article_repo=article_repo,
+                    raw_bucket=config.storage.raw_bucket,
+                )
+                parsed = parse_service.parse_articles(articles_to_parse, source.source_type)
+                parsed_count += len(parsed)
+            job.parsed_count = parsed_count
 
             # Success
             job.status = "success"
@@ -132,9 +145,9 @@ def blog_crawl_all():
 
             result = {
                 "source": source_name,
-                "discovered": len(urls),
-                "fetched": len(articles),
-                "parsed": len(parsed),
+                "discovered": disc_result.total_new,
+                "fetched": len(all_articles),
+                "parsed": parsed_count,
             }
             logger.info("[done] %s", result)
             return result
