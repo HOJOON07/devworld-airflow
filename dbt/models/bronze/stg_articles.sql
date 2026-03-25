@@ -1,21 +1,27 @@
--- Bronze layer: staging view over raw article data loaded by dlt.
--- Minimal transformation — type casting and column renaming only.
+-- Bronze layer: staging view over PostgreSQL articles table.
+-- Joins with crawl_sources to add source_name.
 
-with source as (
-    select * from {{ source('raw', 'articles') }}
+with articles as (
+    select * from {{ source('public', 'articles') }}
+),
+
+sources as (
+    select * from {{ source('public', 'crawl_sources') }}
 )
 
 select
-    id,
-    source_id,
-    url,
-    title,
-    content_text,
-    content_html,
-    author,
-    cast(published_at as timestamp) as published_at,
-    cast(discovered_at as timestamp) as discovered_at,
-    raw_storage_key,
-    content_hash,
-    metadata
-from source
+    a.id,
+    a.source_id,
+    s.name as source_name,
+    a.url,
+    a.title,
+    a.content_text,
+    a.content_html,
+    a.author,
+    a.published_at,
+    a.discovered_at,
+    a.raw_storage_key,
+    a.content_hash,
+    a.metadata
+from articles a
+join sources s on a.source_id = s.id

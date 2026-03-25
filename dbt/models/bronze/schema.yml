@@ -1,15 +1,17 @@
 version: 2
 
 sources:
-  - name: raw
-    description: Raw data loaded by dlt pipeline
+  - name: public
+    description: PostgreSQL app_db tables
     tables:
       - name: articles
-        description: Raw articles loaded from crawl pipeline
+        description: Crawled articles from all sources
+      - name: crawl_sources
+        description: Crawl source registry
 
 models:
   - name: stg_articles
-    description: Staged articles with basic type casting
+    description: Staged articles with source name joined
     columns:
       - name: id
         description: Article UUID
@@ -24,3 +26,5 @@ models:
         description: Reference to crawl source
         tests:
           - not_null
+      - name: source_name
+        description: Crawl source name

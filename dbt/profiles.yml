@@ -2,8 +2,13 @@ devworld:
   target: dev
   outputs:
     dev:
-      type: duckdb
-      path: "{{ env_var('DUCKDB_PATH', 'devworld.duckdb') }}"
+      type: postgres
+      host: "{{ env_var('DB_HOST', 'localhost') }}"
+      port: "{{ env_var('DB_PORT', '5432') | int }}"
+      user: "{{ env_var('DB_USER', 'devworld') }}"
+      pass: "{{ env_var('DB_PASSWORD', 'devworld') }}"
+      dbname: "{{ env_var('DB_NAME', 'app_db') }}"
+      schema: public
       threads: 4
     prod:
       type: postgres
@@ -11,6 +16,6 @@ devworld:
       port: "{{ env_var('DB_PORT', '5432') | int }}"
       user: "{{ env_var('DB_USER', 'devworld') }}"
       pass: "{{ env_var('DB_PASSWORD', 'devworld') }}"
-      dbname: "{{ env_var('DB_NAME', 'devworld') }}"
+      dbname: "{{ env_var('DB_NAME', 'app_db') }}"
       schema: public
       threads: 4

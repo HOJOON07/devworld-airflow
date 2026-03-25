@@ -17,3 +17,5 @@ models:
         description: Article URL
         tests:
           - not_null
+      - name: source_name
+        description: Crawl source name

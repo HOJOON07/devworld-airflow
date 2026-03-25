@@ -18,3 +18,5 @@ models:
         tests:
           - unique
           - not_null
+      - name: source_name
+        description: Crawl source name

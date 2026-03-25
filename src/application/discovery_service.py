@@ -56,8 +56,12 @@ class DiscoveryService:
         urls_to_fetch: list[str] = []
         saved_articles: list[Article] = []
 
+        url_filter = (source.crawl_config or {}).get("url_filter")
+
         for item in parsed:
             if not item.url:
+                continue
+            if url_filter and url_filter not in item.url:
                 continue
             if self._article_repo.exists_by_url(item.url):
                 continue

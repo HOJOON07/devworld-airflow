@@ -1,7 +1,6 @@
 """Blog Crawl DAG — crawls a single source manually.
 
-Parameterized by source_name and partition_date.
-Handles both RSS with content:encoded and without.
+Crawling only. dlt load and dbt transform are separate DAGs.
 """
 
 from __future__ import annotations
@@ -34,7 +33,7 @@ from airflow.models.param import Param
 def blog_crawl():
     @task()
     def crawl(**context) -> dict:
-        """Run full crawl for a single source."""
+        """Run crawl for a single source."""
         from src.application.discovery_service import DiscoveryService
         from src.application.fetch_service import FetchService
         from src.application.parse_service import ParseService
@@ -55,6 +54,10 @@ def blog_crawl():
         logger = setup_logging(f"blog_crawl.{source_name}")
 
         config = Config()
+
+        from src.application.source_sync_service import sync_sources
+        sync_sources(config.database.url)
+
         source_repo = PostgresCrawlSourceRepository(config.database.url)
         article_repo = PostgresArticleRepository(config.database.url)
         storage = S3Storage(config.storage)
@@ -79,7 +82,7 @@ def blog_crawl():
 
         all_articles = list(disc_result.saved_articles)
 
-        # 2. Fetch (content:encoded 없는 URL만)
+        # 2. Fetch
         if disc_result.urls_to_fetch:
             logger.info("[fetch] %d URLs for source=%s", len(disc_result.urls_to_fetch), source_name)
             fetch_service = FetchService(
@@ -93,7 +96,7 @@ def blog_crawl():
             )
             all_articles.extend(fetched)
 
-        # 3. Parse (fetch한 것만 — RSS content는 이미 저장됨)
+        # 3. Parse
         articles_to_parse = [a for a in all_articles if a not in disc_result.saved_articles]
         parsed_count = len(disc_result.saved_articles)
 

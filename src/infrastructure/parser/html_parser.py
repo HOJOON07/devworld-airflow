@@ -13,60 +13,46 @@ logger = setup_logging(__name__)
 class HtmlParser:
     """Generic HTML content parser using trafilatura.
 
-    Extracts article body, title, author, date from any HTML page.
-    Works across most tech blogs without source-specific rules.
+    Used for sources without content:encoded (e.g. line-tech, banksalad-tech).
+    Extracts article body, title, author, date from raw HTML pages.
     """
 
     def parse(self, raw_content: str, source_type: str) -> list[ParsedArticle]:
-        result = trafilatura.extract(
+        meta = trafilatura.metadata.extract_metadata(raw_content)
+
+        content_text = trafilatura.extract(
             raw_content,
             include_comments=False,
             include_tables=True,
             output_format="txt",
-            with_metadata=True,
         )
 
-        metadata = trafilatura.extract(
-            raw_content,
-            include_comments=False,
-            output_format="xmltei",
-            with_metadata=True,
-        )
+        if not content_text:
+            logger.warning("trafilatura could not extract content")
+            return []
 
-        title = None
-        author = None
-        published_at = None
-        content_html = None
-
-        meta = trafilatura.metadata.extract_metadata(raw_content)
-        if meta:
-            title = meta.title
-            author = meta.author
-            if meta.date:
-                published_at = self._parse_date(meta.date)
-
-        content_html_result = trafilatura.extract(
+        content_html = trafilatura.extract(
             raw_content,
             include_comments=False,
             include_tables=True,
             output_format="html",
         )
 
-        if not result:
-            logger.warning("trafilatura could not extract content")
-            return []
+        title = meta.title if meta else None
+        author = meta.author if meta else None
+        published_at = self._parse_date(meta.date) if meta and meta.date else None
 
         article = ParsedArticle(
             url="",
             title=title,
-            content_text=result,
-            content_html=content_html_result,
+            content_text=content_text,
+            content_html=content_html,
             author=author,
             published_at=published_at,
             metadata={},
         )
 
-        logger.info("Extracted article: title=%s, text_len=%d", title, len(result))
+        logger.info("Extracted: title=%s, text_len=%d", title, len(content_text))
         return [article]
 
     @staticmethod

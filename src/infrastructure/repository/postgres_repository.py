@@ -114,7 +114,7 @@ class PostgresArticleRepository:
             discovered_at=row["discovered_at"],
             raw_storage_key=row["raw_storage_key"],
             content_hash=row["content_hash"],
-            metadata=json.loads(row["metadata"]) if row.get("metadata") else None,
+            metadata=row["metadata"] if row.get("metadata") else None,
         )
 
 
@@ -170,7 +170,7 @@ class PostgresCrawlSourceRepository:
             source_type=row["source_type"],
             base_url=row["base_url"],
             feed_url=row["feed_url"],
-            crawl_config=json.loads(row["crawl_config"]) if row.get("crawl_config") else None,
+            crawl_config=row["crawl_config"] if row.get("crawl_config") else None,
             is_active=row["is_active"],
             created_at=row["created_at"],
         )
@@ -189,7 +189,7 @@ class PostgresCrawlSourceRepository:
             source_type=row["source_type"],
             base_url=row["base_url"],
             feed_url=row["feed_url"],
-            crawl_config=json.loads(row["crawl_config"]) if row.get("crawl_config") else None,
+            crawl_config=row["crawl_config"] if row.get("crawl_config") else None,
             is_active=row["is_active"],
             created_at=row["created_at"],
         )
@@ -206,7 +206,7 @@ class PostgresCrawlSourceRepository:
                 source_type=row["source_type"],
                 base_url=row["base_url"],
                 feed_url=row["feed_url"],
-                crawl_config=json.loads(row["crawl_config"]) if row.get("crawl_config") else None,
+                crawl_config=row["crawl_config"] if row.get("crawl_config") else None,
                 is_active=row["is_active"],
                 created_at=row["created_at"],
             )
@@ -225,7 +225,7 @@ class PostgresCrawlSourceRepository:
                 source_type=row["source_type"],
                 base_url=row["base_url"],
                 feed_url=row["feed_url"],
-                crawl_config=json.loads(row["crawl_config"]) if row.get("crawl_config") else None,
+                crawl_config=row["crawl_config"] if row.get("crawl_config") else None,
                 is_active=row["is_active"],
                 created_at=row["created_at"],
             )

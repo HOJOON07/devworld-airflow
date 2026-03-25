@@ -2,29 +2,18 @@ x-airflow-common: &airflow-common
   build:
     context: .
     dockerfile: Dockerfile
+  env_file:
+    - .env
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow_db
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__API__SECRET_KEY: local-dev-secret-key
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-webserver:8080/execution/'
-    AIRFLOW__API_AUTH__JWT_SECRET: 'local-dev-jwt-secret'
-    AIRFLOW__API_AUTH__JWT_ISSUER: 'airflow'
     AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
     PYTHONPATH: /opt/airflow
-    # Storage (MinIO as local R2 replacement)
-    STORAGE_ENDPOINT_URL: http://minio:9000
-    STORAGE_ACCESS_KEY: minioadmin
-    STORAGE_SECRET_KEY: minioadmin
-    STORAGE_REGION: us-east-1
-    # App DB
-    DB_HOST: postgres
-    DB_PORT: '5432'
-    DB_NAME: app_db
-    DB_USER: devworld
-    DB_PASSWORD: devworld
+    DUCKLAKE_CATALOG_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./src:/opt/airflow/src
@@ -37,17 +26,15 @@ x-airflow-common: &airflow-common
 services:
   postgres:
     image: postgres:15
-    environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow_db
+    env_file:
+      - .env
     ports:
       - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-airflow} -d ${POSTGRES_DB:-airflow_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,9 +42,8 @@ services:
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+    env_file:
+      - .env
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -76,13 +62,15 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
       mc mb --ignore-existing local/devworld-raw;
       mc mb --ignore-existing local/devworld-bronze;
       mc mb --ignore-existing local/devworld-silver;
       mc mb --ignore-existing local/devworld-gold-analytics;
       exit 0;
       "
+    env_file:
+      - .env
 
   airflow-webserver:
     <<: *airflow-common

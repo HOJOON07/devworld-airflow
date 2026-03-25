@@ -17,5 +17,14 @@
         "schema": "app_db",
         "login": "devworld",
         "password": "devworld"
+    },
+    "ducklake_catalog": {
+        "conn_type": "postgres",
+        "description": "DuckLake catalog database (PostgreSQL backend)",
+        "host": "postgres",
+        "port": 5432,
+        "schema": "airflow_db",
+        "login": "airflow",
+        "password": "airflow"
     }
 }

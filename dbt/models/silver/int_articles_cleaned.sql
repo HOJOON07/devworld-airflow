@@ -3,6 +3,7 @@
 
 with staged as (
     select * from {{ ref('stg_articles') }}
+    where content_hash is not null
 ),
 
 deduplicated as (
@@ -13,19 +14,21 @@ deduplicated as (
             order by discovered_at asc
         ) as _dedup_rank
     from staged
-    where content_hash is not null
 )
 
 select
     id,
     source_id,
+    source_name,
     url,
     title,
     content_text,
+    content_html,
     author,
     published_at,
     discovered_at,
     raw_storage_key,
-    content_hash
+    content_hash,
+    metadata
 from deduplicated
 where _dedup_rank = 1

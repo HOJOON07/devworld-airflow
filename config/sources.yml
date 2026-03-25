@@ -51,6 +51,12 @@ sources:
     feed_url: https://tech.kakaoenterprise.com/feed
     is_active: true
 
+  - name: ridi-tech
+    source_type: rss
+    base_url: https://ridicorp.com
+    feed_url: https://ridicorp.com/story-category/tech-blog/feed/
+    is_active: true
+
   # ===========================================
   # content:encoded 없음 — URL fetch + trafilatura 필요
   # ===========================================
@@ -62,11 +68,13 @@ sources:
     is_active: true
 
   # ===========================================
-  # HTML 목록 페이지 크롤링 — html 크롤러 구현 후 활성화
+  # content:encoded 없음 + URL 필터 필요
   # ===========================================
 
   - name: banksalad-tech
-    source_type: html
+    source_type: rss
     base_url: https://blog.banksalad.com
-    feed_url: https://blog.banksalad.com/tech/
-    is_active: false
+    feed_url: https://blog.banksalad.com/rss.xml
+    is_active: true
+    crawl_config:
+      url_filter: "/tech/"

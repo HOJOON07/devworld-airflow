@@ -1,7 +1,7 @@
 """Blog Crawl All DAG — automatically crawls every active source.
 
-No params needed. Runs daily at KST 00:00 (UTC 15:00).
-Each active source is crawled in parallel using dynamic task mapping.
+Crawling only. dlt load and dbt transform are separate DAGs.
+Runs daily at KST 00:00 (UTC 15:00).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from airflow.decorators import dag, task
     schedule="0 15 * * *",
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["crawl", "blog", "all"],
+    tags=["crawl", "blog"],
 )
 def blog_crawl_all():
     @task()
@@ -47,7 +47,7 @@ def blog_crawl_all():
 
     @task()
     def crawl_source(source_name: str, **context) -> dict:
-        """Run full crawl pipeline for a single source with job tracking."""
+        """Run crawl pipeline for a single source with job tracking."""
         from src.application.discovery_service import DiscoveryService
         from src.application.fetch_service import FetchService
         from src.application.parse_service import ParseService
@@ -74,7 +74,6 @@ def blog_crawl_all():
         if not source:
             raise ValueError(f"Source not found: {source_name}")
 
-        # Create crawl job record
         job = CrawlJob(
             source_id=source.id,
             partition_date=partition_date,
@@ -86,7 +85,7 @@ def blog_crawl_all():
         try:
             storage = S3Storage(config.storage)
 
-            # 1. Discover (RSS content:encoded 있으면 바로 저장됨)
+            # 1. Discover
             logger.info("[discover] source=%s", source_name)
             discovery = DiscoveryService(
                 fetcher=HttpFetcher(),
@@ -107,7 +106,7 @@ def blog_crawl_all():
 
             all_articles = list(disc_result.saved_articles)
 
-            # 2. Fetch (content:encoded 없는 URL만 HTTP fetch)
+            # 2. Fetch
             if disc_result.urls_to_fetch:
                 logger.info("[fetch] %d URLs for source=%s", len(disc_result.urls_to_fetch), source_name)
                 fetch_service = FetchService(
@@ -122,9 +121,9 @@ def blog_crawl_all():
                 all_articles.extend(fetched)
             job.fetched_count = len(all_articles)
 
-            # 3. Parse (fetch한 것만 — RSS content는 이미 파싱됨)
+            # 3. Parse
             articles_to_parse = [a for a in all_articles if a not in disc_result.saved_articles]
-            parsed_count = len(disc_result.saved_articles)  # RSS content는 이미 파싱됨
+            parsed_count = len(disc_result.saved_articles)
 
             if articles_to_parse:
                 logger.info("[parse] %d articles for source=%s", len(articles_to_parse), source_name)
@@ -138,7 +137,6 @@ def blog_crawl_all():
                 parsed_count += len(parsed)
             job.parsed_count = parsed_count
 
-            # Success
             job.status = "success"
             job.completed_at = datetime.utcnow()
             job_repo.save(job)
@@ -153,7 +151,6 @@ def blog_crawl_all():
             return result
 
         except Exception as e:
-            # Record failure
             job.status = "failed"
             job.error_message = str(e)[:500]
             job.completed_at = datetime.utcnow()
@@ -172,24 +169,17 @@ def blog_crawl_all():
         total_p = sum(r["parsed"] for r in results)
         logger.info(
             "Crawl complete: %d sources, %d discovered, %d fetched, %d parsed",
-            len(results),
-            total_d,
-            total_f,
-            total_p,
+            len(results), total_d, total_f, total_p,
         )
         for r in results:
             logger.info(
                 "  %s: discovered=%d fetched=%d parsed=%d",
-                r["source"],
-                r["discovered"],
-                r["fetched"],
-                r["parsed"],
+                r["source"], r["discovered"], r["fetched"], r["parsed"],
             )
 
-    # Flow: sync → get sources → crawl each (parallel) → summarize
     sync_result = sync_sources()
     sources = get_active_sources()
-    sync_result >> sources  # sync 완료 후 소스 조회
+    sync_result >> sources
     results = crawl_source.expand(source_name=sources)
     summarize(results)
 

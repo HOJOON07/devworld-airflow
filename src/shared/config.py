@@ -23,6 +23,24 @@ class StorageConfig:
     lake_bucket: str = field(
         default_factory=lambda: os.environ.get("LAKE_BUCKET", "devworld-lake")
     )
+    bronze_bucket: str = field(
+        default_factory=lambda: os.environ.get(
+            "STORAGE_BRONZE_BUCKET", "devworld-bronze"
+        )
+    )
+    silver_bucket: str = field(
+        default_factory=lambda: os.environ.get(
+            "STORAGE_SILVER_BUCKET", "devworld-silver"
+        )
+    )
+    gold_analytics_bucket: str = field(
+        default_factory=lambda: os.environ.get(
+            "STORAGE_GOLD_ANALYTICS_BUCKET", "devworld-gold-analytics"
+        )
+    )
+    region: str = field(
+        default_factory=lambda: os.environ.get("STORAGE_REGION", "us-east-1")
+    )
 
 
 @dataclass

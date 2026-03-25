@@ -19,7 +19,7 @@ models:
       +schema: bronze
     silver:
       +materialized: table
-      +schema: silver
+      +schema: public
     gold:
       +materialized: table
-      +schema: gold
+      +schema: public
