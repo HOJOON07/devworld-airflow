@@ -14,8 +14,10 @@ paths:
 - Backend API: ECS Fargate + ALB (이 레포 밖)
 - Airflow: ECS Fargate (이 레포)
 
-## Airflow ECS 배포
-- airflow-webserver: ECS 서비스 1개
+## Airflow 버전 및 구성
+- Airflow **3.1.8** 사용
+- `api-server` 프로세스 (기존 `webserver` 없음 — Airflow 3.x 변경)
+- airflow-api-server: ECS 서비스 1개
 - airflow-scheduler: ECS 서비스 1개 (LocalExecutor로 태스크 직접 실행)
 - worker/triggerer 서비스 없음, Redis 없음
 - DAG 배포: Docker image에 포함 → ECR push → ECS redeploy
@@ -33,8 +35,15 @@ paths:
 
 ## Docker
 - base image: apache/airflow 공식 이미지
+- 환경변수 파일: `.env` (`.env.local` 아님)
 - .env 파일에 시크릿 금지 — Secrets Manager 사용
 - docker-compose는 로컬 개발용
+
+## 주요 의존성
+- Astronomer Cosmos (dbt DAG 실행)
+- Ollama SDK (AI enrichment)
+- DuckDB / DuckLake (분석 엔진)
+- dlt (데이터 적재)
 
 ## RDS PostgreSQL
 - 초기: 단일 RDS 인스턴스, DB 분리 (app_db, airflow_db)
@@ -43,6 +52,7 @@ paths:
 ## 시크릿
 - DB credentials, R2 key, API key → AWS Secrets Manager
 - Airflow connection/variable → Secrets Manager 백엔드 연동
+- Secrets Manager 대비 구조로 설계 (로컬에서도 동일 패턴)
 - 코드에 자격증명 하드코딩 금지
 
 ## 모니터링

@@ -13,8 +13,9 @@ devworld-airflow 데이터 플랫폼의 Code Reviewer.
 - 관심사 분리: domain/application/infrastructure/shared 경계
 - Thin DAG: DAG에 비즈니스 로직이 들어가지 않았는가
 - 데이터 정합성: 스키마 일관성, 멱등성, dedup 정확성
-- 보안: 시크릿 노출, SQL 인젝션, 하드코딩된 자격증명
+- 보안: 시크릿 노출 (.env 관리), SQL 인젝션, 하드코딩된 자격증명
 - 패턴 준수: Raw First, 재처리 가능성, source별 확장성
+- AI enrichment: LLM 응답 파싱 안전성, API key 관리
 
 ## 출력 형식
 - Critical / Warning / Pass 분류

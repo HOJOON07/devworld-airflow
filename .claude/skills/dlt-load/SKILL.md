@@ -10,18 +10,19 @@ $ARGUMENTS 테이블을 dlt pipeline으로 Bronze parquet에 적재하는 코드
 ## 데이터 흐름
 
 ```
-PostgreSQL (source table) → dlt pipeline → MinIO Bronze bucket (parquet)
+PostgreSQL (articles + crawl_sources) → dlt pipeline → MinIO Bronze bucket (parquet)
 ```
 
 ## 구현 규칙
 
 ### dlt pipeline 작성
 - `src/application/load_service.py`에 구현
-- pipeline name: `bronze_{table_name}`
-- destination: `filesystem` (MinIO/R2, S3-compatible)
+- pipeline name: `bronze_{source_name}`
+- destination: `filesystem` (MinIO/R2, S3-compatible, `dlt.destinations.filesystem`)
 - loader_file_format: `parquet`
-- dataset_name: `{table_name}/{partition_date}`
-- write_disposition: `replace` (파티션 단위 덮어쓰기)
+- dataset_name: `articles/{source_name}`
+- write_disposition: `replace` (소스 단위 덮어쓰기)
+- `@dlt.resource` 데코레이터로 리소스 정의
 
 ### 환경별 설정
 - Local: MinIO endpoint (STORAGE_ENDPOINT_URL)
@@ -29,9 +30,9 @@ PostgreSQL (source table) → dlt pipeline → MinIO Bronze bucket (parquet)
 - credentials는 `src/shared/config.py`의 `StorageConfig`에서 가져온다
 
 ### Bronze 적재 스키마
-- source 테이블의 모든 컬럼 유지
+- articles + crawl_sources JOIN한 전체 컬럼 유지
 - 추가 컬럼: source_name, partition_date, crawled_at
-- 타입 변환: datetime → string (parquet 호환)
+- metadata 컬럼: `data_type: "text"` 지정 (JSONB → text 변환)
 
 ### 하지 말 것
 - dlt로 HTML 크롤링이나 파싱을 하지 않는다

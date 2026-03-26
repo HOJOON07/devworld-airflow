@@ -1,7 +1,7 @@
 """dlt Load DAG — loads articles from PostgreSQL to Bronze parquet.
 
-Runs daily at KST 01:00 (UTC 16:00), after blog_crawl_all.
-Loads all active sources' articles to MinIO Bronze bucket as parquet.
+Triggered by articles_ready asset (after blog_crawl_all).
+Produces bronze_ready asset to trigger dbt_silver.
 """
 
 from __future__ import annotations
@@ -11,10 +11,12 @@ from datetime import datetime
 from airflow.decorators import dag, task
 from airflow.models.param import Param
 
+from assets import articles_ready, bronze_ready
+
 
 @dag(
     dag_id="dlt_load",
-    schedule="0 16 * * *",
+    schedule=articles_ready,
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["dlt", "bronze", "load"],
@@ -28,7 +30,6 @@ from airflow.models.param import Param
 def dlt_load():
     @task()
     def get_sources(**context) -> list[str]:
-        """Get sources to load. If source_name param given, use that. Otherwise all active."""
         from src.infrastructure.repository.postgres_repository import (
             PostgresCrawlSourceRepository,
         )
@@ -53,13 +54,14 @@ def dlt_load():
 
     @task()
     def load_source(source_name: str, **context) -> dict:
-        """Load articles for a single source to Bronze parquet."""
         from src.application.load_service import load_articles_to_bronze
         from src.shared.config import Config
         from src.shared.logging import setup_logging
 
+        from datetime import datetime as dt
+
         logger = setup_logging(f"dlt_load.{source_name}")
-        partition_date = context["ds"]
+        partition_date = context.get("ds") or dt.utcnow().strftime("%Y-%m-%d")
         config = Config()
 
         try:
@@ -71,9 +73,8 @@ def dlt_load():
             logger.exception("[failed] source=%s", source_name)
             return {"source": source_name, "loaded": 0, "error": str(e)[:200]}
 
-    @task()
+    @task(outlets=[bronze_ready])
     def summarize(results: list[dict]) -> None:
-        """Log summary of dlt load results."""
         from src.shared.logging import setup_logging
 
         logger = setup_logging("dlt_load.summary")

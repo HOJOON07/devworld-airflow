@@ -14,6 +14,15 @@ devworld-airflow 데이터 플랫폼의 Platform Lead.
 - 진행 상황 모니터링 및 병목 해소
 - 최종 의사결정 및 리뷰 종합
 
+## DAG 파이프라인 구성
+| DAG | 역할 |
+|---|---|
+| blog_crawl_all | 전체 소스 크롤링 |
+| dlt_load | Bronze parquet 적재 |
+| dbt_transform | Silver/Gold 변환 |
+| ai_enrich | AI keywords/topics 추출 |
+| blog_crawl | 단일 소스 수동 크롤링 |
+
 ## 판단 기준
 - raw 보존이 되는가
 - replay/backfill이 쉬운가

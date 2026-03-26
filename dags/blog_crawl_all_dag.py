@@ -10,6 +10,8 @@ from datetime import datetime
 
 from airflow.decorators import dag, task
 
+from assets import articles_ready
+
 
 @dag(
     dag_id="blog_crawl_all",
@@ -158,7 +160,7 @@ def blog_crawl_all():
             logger.exception("[failed] source=%s", source_name)
             return {"source": source_name, "discovered": 0, "fetched": 0, "parsed": 0, "error": str(e)[:200]}
 
-    @task()
+    @task(outlets=[articles_ready])
     def summarize(results: list[dict]) -> None:
         """Log summary of all crawl results."""
         from src.shared.logging import setup_logging

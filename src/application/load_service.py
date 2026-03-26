@@ -90,7 +90,10 @@ def load_articles_to_bronze(
     @dlt.resource(
         name="articles",
         write_disposition="replace",
-        columns={"metadata": {"data_type": "text"}},
+        columns={
+            "metadata": {"data_type": "text"},
+            "published_at": {"data_type": "text"},
+        },
     )
     def _resource():
         yield records

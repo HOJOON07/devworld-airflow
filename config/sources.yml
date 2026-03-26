@@ -1,6 +1,6 @@
 sources:
   # ===========================================
-  # content:encoded 있음 — RSS에서 본문 직접 추출
+  # 기존 소스
   # ===========================================
 
   - name: toss-tech
@@ -24,7 +24,7 @@ sources:
   - name: musinsa-tech
     source_type: rss
     base_url: https://techblog.musinsa.com
-    feed_url: https://medium.com/feed/musinsa-tech
+    feed_url: https://techblog.musinsa.com/feed
     is_active: true
 
   - name: yogiyo-tech
@@ -57,9 +57,11 @@ sources:
     feed_url: https://ridicorp.com/story-category/tech-blog/feed/
     is_active: true
 
-  # ===========================================
-  # content:encoded 없음 — URL fetch + trafilatura 필요
-  # ===========================================
+  - name: devsisters-tech
+    source_type: rss
+    base_url: https://tech.devsisters.com
+    feed_url: https://tech.devsisters.com/rss.xml
+    is_active: true
 
   - name: line-tech
     source_type: rss
@@ -67,9 +69,11 @@ sources:
     feed_url: https://techblog.lycorp.co.jp/ko/feed/index.xml
     is_active: true
 
-  # ===========================================
-  # content:encoded 없음 + URL 필터 필요
-  # ===========================================
+  - name: kurly-tech
+    source_type: rss
+    base_url: https://helloworld.kurly.com
+    feed_url: https://helloworld.kurly.com/feed
+    is_active: true
 
   - name: banksalad-tech
     source_type: rss
@@ -78,3 +82,95 @@ sources:
     is_active: true
     crawl_config:
       url_filter: "/tech/"
+
+  # ===========================================
+  # 신규 추가
+  # ===========================================
+
+  - name: naver-d2
+    source_type: rss
+    base_url: https://d2.naver.com
+    feed_url: https://d2.naver.com/d2.atom
+    is_active: true
+
+  - name: hancom-tech
+    source_type: rss
+    base_url: https://tech.hancom.com
+    feed_url: https://tech.hancom.com/feed/
+    is_active: true
+
+  - name: nongshim-cloud
+    source_type: rss
+    base_url: https://tech.cloud.nongshim.co.kr
+    feed_url: https://tech.cloud.nongshim.co.kr/feed/
+    is_active: true
+
+  - name: gccompany-tech
+    source_type: rss
+    base_url: https://techblog.gccompany.co.kr
+    feed_url: https://techblog.gccompany.co.kr/feed
+    is_active: true
+
+  - name: nhn-cloud
+    source_type: rss
+    base_url: https://meetup.nhncloud.com
+    feed_url: https://meetup.nhncloud.com/rss
+    is_active: false
+
+  - name: oliveyoung-tech
+    source_type: rss
+    base_url: https://oliveyoung.tech
+    feed_url: https://oliveyoung.tech/rss.xml
+    is_active: true
+
+  - name: google-dev-kr
+    source_type: rss
+    base_url: https://developers-kr.googleblog.com
+    feed_url: https://feeds.feedburner.com/GoogleDevelopersKorea
+    is_active: false
+
+  - name: lotteon-tech
+    source_type: rss
+    base_url: https://techblog.lotteon.com
+    feed_url: https://techblog.lotteon.com/feed
+    is_active: true
+
+  - name: kakaopay-tech
+    source_type: rss
+    base_url: https://tech.kakaopay.com
+    feed_url: https://tech.kakaopay.com/rss.xml
+    is_active: true
+
+  - name: aws-tech-kr
+    source_type: rss
+    base_url: https://aws.amazon.com/ko/blogs/tech
+    feed_url: https://aws.amazon.com/ko/blogs/tech/feed/
+    is_active: true
+
+  - name: petfriends-tech
+    source_type: rss
+    base_url: https://techblog.pet-friends.co.kr
+    feed_url: https://techblog.pet-friends.co.kr/feed
+    is_active: true
+
+  - name: myrealtrip-tech
+    source_type: rss
+    base_url: https://medium.com/myrealtrip-product
+    feed_url: https://medium.com/feed/myrealtrip-product
+    is_active: true
+
+  - name: vercel
+    source_type: rss
+    base_url: https://vercel.com
+    feed_url: https://vercel.com/atom
+    is_active: false
+
+  # ===========================================
+  # 403 차단 — Playwright 도입 후 활성화
+  # ===========================================
+
+  - name: woowahan-tech
+    source_type: rss
+    base_url: https://techblog.woowahan.com
+    feed_url: https://techblog.woowahan.com/feed/
+    is_active: false

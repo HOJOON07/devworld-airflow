@@ -8,6 +8,8 @@ sources:
         description: Crawled articles from all sources
       - name: crawl_sources
         description: Crawl source registry
+      - name: article_enrichments
+        description: AI enrichment results (keywords, topics, summary)
 
 models:
   - name: stg_articles

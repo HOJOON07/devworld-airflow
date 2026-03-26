@@ -67,6 +67,17 @@ CREATE TABLE IF NOT EXISTS crawl_jobs (
     completed_at TIMESTAMP
 );
 
+-- ============================================================
+-- article_enrichments: AI enrichment 결과 (keywords, topics)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS article_enrichments (
+    article_id UUID PRIMARY KEY REFERENCES articles(id),
+    keywords JSONB,
+    topics JSONB,
+    summary TEXT,
+    enriched_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_articles_source_id ON articles(source_id);
 CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url);
