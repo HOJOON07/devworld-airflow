@@ -49,10 +49,10 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   }
 }
 
-# ECS Webserver Running Task Count Alarm
-resource "aws_cloudwatch_metric_alarm" "ecs_webserver_running" {
-  alarm_name          = "${var.project_name}-webserver-not-running"
-  alarm_description   = "Airflow webserver has no running tasks"
+# ECS API Server Running Task Count Alarm
+resource "aws_cloudwatch_metric_alarm" "ecs_api_server_running" {
+  alarm_name          = "${var.project_name}-api-server-not-running"
+  alarm_description   = "Airflow API server has no running tasks"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
   metric_name         = "RunningTaskCount"
@@ -63,11 +63,11 @@ resource "aws_cloudwatch_metric_alarm" "ecs_webserver_running" {
 
   dimensions = {
     ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.webserver.name
+    ServiceName = aws_ecs_service.api_server.name
   }
 
   tags = {
-    Name = "${var.project_name}-webserver-running-alarm"
+    Name = "${var.project_name}-api-server-running-alarm"
   }
 }
 

@@ -42,14 +42,14 @@ variable "private_subnet_cidrs" {
 }
 
 # ECS
-variable "webserver_cpu" {
-  description = "CPU units for Airflow webserver (1024 = 1 vCPU)"
+variable "api_server_cpu" {
+  description = "CPU units for Airflow API server (1024 = 1 vCPU)"
   type        = number
   default     = 512
 }
 
-variable "webserver_memory" {
-  description = "Memory in MiB for Airflow webserver"
+variable "api_server_memory" {
+  description = "Memory in MiB for Airflow API server"
   type        = number
   default     = 1024
 }

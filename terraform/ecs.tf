@@ -11,21 +11,21 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
-# Airflow Webserver Task Definition
-resource "aws_ecs_task_definition" "webserver" {
-  family                   = "${var.project_name}-webserver"
+# Airflow API Server Task Definition
+resource "aws_ecs_task_definition" "api_server" {
+  family                   = "${var.project_name}-api-server"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = var.webserver_cpu
-  memory                   = var.webserver_memory
+  cpu                      = var.api_server_cpu
+  memory                   = var.api_server_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
   container_definitions = jsonencode([
     {
-      name  = "airflow-webserver"
+      name  = "airflow-api-server"
       image = "${aws_ecr_repository.airflow.repository_url}:latest"
-      command = ["webserver"]
+      command = ["api-server"]
 
       portMappings = [
         {
@@ -55,7 +55,7 @@ resource "aws_ecs_task_definition" "webserver" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.airflow.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "webserver"
+          "awslogs-stream-prefix" = "api-server"
         }
       }
 
@@ -70,7 +70,7 @@ resource "aws_ecs_task_definition" "webserver" {
   ])
 
   tags = {
-    Name = "${var.project_name}-webserver"
+    Name = "${var.project_name}-api-server"
   }
 }
 
@@ -118,11 +118,11 @@ resource "aws_ecs_task_definition" "scheduler" {
   }
 }
 
-# Webserver Service
-resource "aws_ecs_service" "webserver" {
-  name            = "${var.project_name}-webserver"
+# API Server Service
+resource "aws_ecs_service" "api_server" {
+  name            = "${var.project_name}-api-server"
   cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.webserver.arn
+  task_definition = aws_ecs_task_definition.api_server.arn
   desired_count   = 1
   launch_type     = "FARGATE"
 
@@ -134,14 +134,14 @@ resource "aws_ecs_service" "webserver" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.airflow.arn
-    container_name   = "airflow-webserver"
+    container_name   = "airflow-api-server"
     container_port   = 8080
   }
 
   depends_on = [aws_lb_listener.http]
 
   tags = {
-    Name = "${var.project_name}-webserver-service"
+    Name = "${var.project_name}-api-server-service"
   }
 }
 

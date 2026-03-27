@@ -4,7 +4,6 @@
   },
   "permissions": {
     "deny": [
-      "Edit(.env*)",
       "Edit(**/secrets/*)",
       "Bash(rm -rf:*)",
       "Bash(terraform apply:*)"

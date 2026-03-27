@@ -35,7 +35,7 @@ resource "aws_security_group" "ecs" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "Airflow webserver from ALB"
+    description     = "Airflow API server from ALB"
     from_port       = 8080
     to_port         = 8080
     protocol        = "tcp"

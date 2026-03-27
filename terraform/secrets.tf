@@ -22,7 +22,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
 
 resource "aws_secretsmanager_secret" "airflow_secret_key" {
   name        = "${var.project_name}/airflow-secret-key"
-  description = "Airflow webserver secret key"
+  description = "Airflow API server secret key"
 
   tags = {
     Name = "${var.project_name}-airflow-secret-key"

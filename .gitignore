@@ -48,3 +48,5 @@ Thumbs.db
 .env.production
 *.pem
 *.key
+config/connections.json
+config/simple_auth_manager_passwords.json

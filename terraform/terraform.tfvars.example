@@ -10,8 +10,8 @@ public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
 private_subnet_cidrs = ["10.0.10.0/24", "10.0.11.0/24"]
 
 # ECS
-webserver_cpu    = 512
-webserver_memory = 1024
+api_server_cpu    = 512
+api_server_memory = 1024
 scheduler_cpu    = 512
 scheduler_memory = 1024
 
