@@ -20,3 +20,39 @@ models:
           - not_null
       - name: source_name
         description: Crawl source name
+
+  - name: mart_trending_topics
+    description: Trending topics by period (daily, weekly, monthly)
+    columns:
+      - name: period
+        description: "daily, weekly, or monthly"
+        tests:
+          - not_null
+      - name: topic
+        description: Topic category
+        tests:
+          - not_null
+      - name: article_count
+        description: Number of articles with this topic
+
+  - name: mart_keyword_stats
+    description: Keyword frequency statistics
+    columns:
+      - name: keyword
+        description: Technical keyword (lowercase)
+        tests:
+          - unique
+          - not_null
+      - name: article_count
+        description: Number of articles with this keyword
+
+  - name: mart_source_stats
+    description: Source (company) statistics
+    columns:
+      - name: source_name
+        description: Crawl source name
+        tests:
+          - unique
+          - not_null
+      - name: article_count
+        description: Total articles from this source

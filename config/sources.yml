@@ -169,6 +169,12 @@ sources:
   # 403 차단 — Playwright 도입 후 활성화
   # ===========================================
 
+  - name: yozm-wishket
+    source_type: rss
+    base_url: https://yozm.wishket.com
+    feed_url: https://yozm.wishket.com/magazine/feed/
+    is_active: true
+
   - name: woowahan-tech
     source_type: rss
     base_url: https://techblog.woowahan.com

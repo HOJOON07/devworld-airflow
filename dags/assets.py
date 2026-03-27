@@ -6,3 +6,8 @@ bronze_ready = Asset("devworld://bronze")
 silver_ready = Asset("devworld://silver")
 enrichments_ready = Asset("devworld://enrichments")
 gold_ready = Asset("devworld://gold")
+
+# GitHub pipeline assets
+github_collected = Asset("devworld://github/collected")
+github_enriched = Asset("devworld://github/enriched")
+github_gold_ready = Asset("devworld://github/gold")

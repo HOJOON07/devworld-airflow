@@ -57,12 +57,22 @@ crawl(discover+fetch+parse) → dlt_load(Bronze parquet) → dbt_transform(Silve
 | `dbt_transform` | 매일 02:00 | Bronze view → Silver table → Gold table (PostgreSQL, Cosmos) |
 | `ai_enrich` | 매일 03:00 | Silver 아티클 AI enrichment (keywords/topics/summary) |
 
+### GitHub 파이프라인 DAG
+
+| DAG | 트리거 | 역할 |
+|---|---|---|
+| `github_collect` | 매일 06:00 | GitHub API로 PR/Issue 수집 + Raw parquet 적재 |
+| `github_ai_enrich` | github_collect Asset | PR diff 요약, Issue 요약, 분류 |
+| `github_dbt_gold` | github_ai_enrich Asset | Raw + enrichments → Gold 서빙 |
+
 ### 소스 관리
 
 - `config/sources.yml`로 크롤링 소스 정의
 - blog_crawl_all DAG 실행 시 YAML → DB 자동 sync
 - RSS content:encoded 자동 판별 (있으면 RSS에서 직접 추출, 없으면 URL fetch + trafilatura)
 - `crawl_config.url_filter` 지원 (특정 경로만 크롤링)
+- `config/github_repos.yml`로 GitHub 추적 레포 정의 (owner/name/initial_fetch_days)
+- GitHub API: PAT 인증, 증분 수집 (watermark 기반)
 
 ## 데이터 아키텍처 핵심 원칙
 

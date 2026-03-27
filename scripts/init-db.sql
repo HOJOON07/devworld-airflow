@@ -102,4 +102,105 @@ INSERT INTO crawl_sources (id, name, source_type, base_url, feed_url, is_active)
     ('a1000000-0000-0000-0000-000000000006', 'daangn-tech', 'rss',
      'https://medium.com/daangn', 'https://medium.com/feed/daangn', true)
 ON CONFLICT (id) DO NOTHING;
-dl
+
+-- ============================================================
+-- GitHub 레포 레지스트리
+-- ============================================================
+CREATE TABLE IF NOT EXISTS github_repos (
+    id UUID PRIMARY KEY,
+    owner VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    full_name VARCHAR(511) NOT NULL UNIQUE,
+    last_collected_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================================
+-- GitHub PR
+-- ============================================================
+CREATE TABLE IF NOT EXISTS github_prs (
+    id UUID PRIMARY KEY,
+    repo_id UUID NOT NULL REFERENCES github_repos(id),
+    pr_number INTEGER NOT NULL,
+    title VARCHAR(1024),
+    body TEXT,
+    state VARCHAR(20),
+    author VARCHAR(255),
+    labels JSONB,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    merged_at TIMESTAMP,
+    diff_text TEXT,
+    raw_storage_key VARCHAR(1024),
+    metadata JSONB,
+    UNIQUE(repo_id, pr_number)
+);
+
+-- ============================================================
+-- GitHub PR 파일
+-- ============================================================
+CREATE TABLE IF NOT EXISTS github_pr_files (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pr_id UUID NOT NULL REFERENCES github_prs(id),
+    filename VARCHAR(1024),
+    status VARCHAR(20),
+    additions INTEGER DEFAULT 0,
+    deletions INTEGER DEFAULT 0,
+    changes INTEGER DEFAULT 0,
+    patch TEXT
+);
+
+-- ============================================================
+-- GitHub Issue
+-- ============================================================
+CREATE TABLE IF NOT EXISTS github_issues (
+    id UUID PRIMARY KEY,
+    repo_id UUID NOT NULL REFERENCES github_repos(id),
+    issue_number INTEGER NOT NULL,
+    title VARCHAR(1024),
+    body TEXT,
+    state VARCHAR(20),
+    author VARCHAR(255),
+    labels JSONB,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    closed_at TIMESTAMP,
+    linked_pr_numbers JSONB,
+    raw_storage_key VARCHAR(1024),
+    metadata JSONB,
+    UNIQUE(repo_id, issue_number)
+);
+
+-- ============================================================
+-- GitHub PR AI 요약
+-- ============================================================
+CREATE TABLE IF NOT EXISTS github_pr_ai_summaries (
+    pr_id UUID PRIMARY KEY REFERENCES github_prs(id),
+    ai_summary TEXT,
+    key_changes JSONB,
+    impact_analysis TEXT,
+    change_type VARCHAR(20),
+    ai_code_review TEXT,
+    keywords JSONB,
+    enriched_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================================
+-- GitHub Issue AI 요약
+-- ============================================================
+CREATE TABLE IF NOT EXISTS github_issue_ai_summaries (
+    issue_id UUID PRIMARY KEY REFERENCES github_issues(id),
+    ai_summary TEXT,
+    key_points JSONB,
+    suggested_solution TEXT,
+    contribution_difficulty VARCHAR(20),
+    keywords JSONB,
+    enriched_at TIMESTAMP DEFAULT NOW()
+);
+
+-- GitHub Indexes
+CREATE INDEX IF NOT EXISTS idx_github_prs_repo ON github_prs(repo_id);
+CREATE INDEX IF NOT EXISTS idx_github_prs_state ON github_prs(state);
+CREATE INDEX IF NOT EXISTS idx_github_issues_repo ON github_issues(repo_id);
+CREATE INDEX IF NOT EXISTS idx_github_issues_state ON github_issues(state);
+CREATE INDEX IF NOT EXISTS idx_github_pr_files_pr ON github_pr_files(pr_id);

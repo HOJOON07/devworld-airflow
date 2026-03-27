@@ -52,7 +52,11 @@ class RssParser:
 
     @staticmethod
     def _extract_content(entry: dict) -> str | None:
+        from html import unescape
+
         content_list = entry.get("content", [])
         if content_list:
-            return content_list[0].get("value")
+            raw = content_list[0].get("value", "")
+            content = unescape(raw)
+            return content if content.strip() else None
         return None
