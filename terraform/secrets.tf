@@ -39,6 +39,49 @@ resource "random_password" "airflow_secret_key" {
   special = false
 }
 
+resource "random_password" "fernet_key" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "fernet_key" {
+  name        = "${var.project_name}/airflow-fernet-key"
+  description = "Airflow Fernet encryption key"
+
+  tags = {
+    Name = "${var.project_name}-airflow-fernet-key"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "fernet_key" {
+  secret_id     = aws_secretsmanager_secret.fernet_key.id
+  secret_string = base64encode(random_password.fernet_key.result)
+}
+
+resource "aws_secretsmanager_secret" "github_token" {
+  name        = "${var.project_name}/github-token"
+  description = "GitHub Personal Access Token for PR/Issue collection"
+
+  tags = {
+    Name = "${var.project_name}-github-token"
+  }
+}
+
+# github_token의 값은 terraform apply 후 수동 설정:
+# aws secretsmanager put-secret-value --secret-id devworld/github-token --secret-string "ghp_xxx"
+
+resource "aws_secretsmanager_secret" "ollama_api_key" {
+  name        = "${var.project_name}/ollama-api-key"
+  description = "Ollama Cloud API key for AI enrichment"
+
+  tags = {
+    Name = "${var.project_name}-ollama-api-key"
+  }
+}
+
+# ollama_api_key의 값은 terraform apply 후 수동 설정:
+# aws secretsmanager put-secret-value --secret-id devworld/ollama-api-key --secret-string "xxx"
+
 resource "aws_secretsmanager_secret" "r2_credentials" {
   name        = "${var.project_name}/r2-credentials"
   description = "Cloudflare R2 access credentials (placeholder)"

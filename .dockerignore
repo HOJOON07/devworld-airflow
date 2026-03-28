@@ -1,0 +1,52 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Secrets
+.env
+.env.*
+config/simple_auth_manager_passwords.json
+config/connections.json
+*.pem
+*.key
+
+# Docs / Reviews (not needed in image)
+docs/
+HARNESS_DESIGN.md
+
+# Terraform (not needed in image)
+terraform/
+
+# Tests (not needed in image)
+tests/
+
+# Claude
+.claude/
+
+# Docker
+docker-compose.yml
+Dockerfile
+
+# Local data
+postgres-data/
+minio-data/
+logs/
+airflow-data/
+htmlcov/
+.coverage

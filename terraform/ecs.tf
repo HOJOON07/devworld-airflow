@@ -48,6 +48,30 @@ resource "aws_ecs_task_definition" "api_server" {
           name      = "AIRFLOW__WEBSERVER__SECRET_KEY"
           valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
         },
+        {
+          name      = "AIRFLOW__CORE__FERNET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.fernet_key.arn}"
+        },
+        {
+          name      = "GITHUB_TOKEN"
+          valueFrom = "${aws_secretsmanager_secret.github_token.arn}"
+        },
+        {
+          name      = "OLLAMA_API_KEY"
+          valueFrom = "${aws_secretsmanager_secret.ollama_api_key.arn}"
+        },
+        {
+          name      = "STORAGE_ACCESS_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:access_key_id::"
+        },
+        {
+          name      = "STORAGE_SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:secret_access_key::"
+        },
+        {
+          name      = "STORAGE_ENDPOINT_URL"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:endpoint::"
+        },
       ]
 
       logConfiguration = {
@@ -99,6 +123,30 @@ resource "aws_ecs_task_definition" "scheduler" {
         {
           name      = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:connection_string::"
+        },
+        {
+          name      = "AIRFLOW__CORE__FERNET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.fernet_key.arn}"
+        },
+        {
+          name      = "GITHUB_TOKEN"
+          valueFrom = "${aws_secretsmanager_secret.github_token.arn}"
+        },
+        {
+          name      = "OLLAMA_API_KEY"
+          valueFrom = "${aws_secretsmanager_secret.ollama_api_key.arn}"
+        },
+        {
+          name      = "STORAGE_ACCESS_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:access_key_id::"
+        },
+        {
+          name      = "STORAGE_SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:secret_access_key::"
+        },
+        {
+          name      = "STORAGE_ENDPOINT_URL"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:endpoint::"
         },
       ]
 

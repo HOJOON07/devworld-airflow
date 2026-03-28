@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Dev / Test
+pytest>=8.0.0
+ruff>=0.4.0
+black>=24.0.0

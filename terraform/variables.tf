@@ -90,3 +90,17 @@ variable "db_username" {
   type        = string
   default     = "devworld"
 }
+
+# SNS
+variable "alarm_email" {
+  description = "Email address for CloudWatch alarm notifications. Leave empty to skip."
+  type        = string
+  default     = ""
+}
+
+# ALB / HTTPS
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS. Leave empty to use HTTP only."
+  type        = string
+  default     = ""
+}

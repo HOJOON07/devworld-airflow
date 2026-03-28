@@ -1,3 +1,24 @@
+# SNS Topic for alarm notifications (email 설정 시에만 생성)
+resource "aws_sns_topic" "alarms" {
+  count = var.alarm_email != "" ? 1 : 0
+  name  = "${var.project_name}-alarms"
+
+  tags = {
+    Name = "${var.project_name}-alarms"
+  }
+}
+
+resource "aws_sns_topic_subscription" "alarm_email" {
+  count     = var.alarm_email != "" ? 1 : 0
+  topic_arn = aws_sns_topic.alarms[0].arn
+  protocol  = "email"
+  endpoint  = var.alarm_email
+}
+
+locals {
+  alarm_actions = var.alarm_email != "" ? [aws_sns_topic.alarms[0].arn] : []
+}
+
 resource "aws_cloudwatch_log_group" "airflow" {
   name              = "/ecs/${var.project_name}"
   retention_in_days = 30
@@ -18,6 +39,9 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   period              = 300
   statistic           = "Average"
   threshold           = 80
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.main.identifier
@@ -40,6 +64,9 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
   statistic           = "Average"
   threshold           = 2000000000
 
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.main.identifier
   }
@@ -60,6 +87,9 @@ resource "aws_cloudwatch_metric_alarm" "ecs_api_server_running" {
   period              = 60
   statistic           = "Average"
   threshold           = 1
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 
   dimensions = {
     ClusterName = aws_ecs_cluster.main.name
@@ -82,6 +112,9 @@ resource "aws_cloudwatch_metric_alarm" "ecs_scheduler_running" {
   period              = 60
   statistic           = "Average"
   threshold           = 1
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 
   dimensions = {
     ClusterName = aws_ecs_cluster.main.name
