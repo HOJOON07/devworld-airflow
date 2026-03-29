@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -287,7 +287,7 @@ class PostgresCrawlJobRepository:
         return self._row_to_job(row)
 
     def update_status(self, job_id: str, status: str) -> None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         with self._engine.connect() as conn:
             conn.execute(
                 text(

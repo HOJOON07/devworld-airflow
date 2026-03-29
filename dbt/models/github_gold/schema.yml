@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: mart_github_prs
+    description: GitHub PRs with AI summaries and repo info for serving
+    columns:
+      - name: pr_id
+        description: PR UUID
+        tests:
+          - unique
+          - not_null
+      - name: repo_name
+        description: "owner/name format"
+        tests:
+          - not_null
+      - name: pr_number
+        tests:
+          - not_null
+
+  - name: mart_github_issues
+    description: GitHub Issues with AI summaries and repo info for serving
+    columns:
+      - name: issue_id
+        description: Issue UUID
+        tests:
+          - unique
+          - not_null
+      - name: repo_name
+        description: "owner/name format"
+        tests:
+          - not_null
+      - name: issue_number
+        tests:
+          - not_null

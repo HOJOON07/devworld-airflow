@@ -1,21 +1,27 @@
-"""dlt Load DAG — loads articles from PostgreSQL to Bronze parquet.
+"""dlt Load DAG — loads articles from PostgreSQL to DuckLake Bronze.
 
 Triggered by articles_ready asset (after blog_crawl_all).
 Produces bronze_ready asset to trigger dbt_silver.
+
+Note: dlt ducklake destination uses PostgreSQL catalog with CREATE SCHEMA,
+which has race conditions under parallel execution. Articles are loaded
+sequentially in a single task to avoid this.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 from airflow.models.param import Param
 
 from assets import articles_ready, bronze_ready
+from common import DEFAULT_ARGS
 
 
 @dag(
     dag_id="dlt_load",
+    default_args=DEFAULT_ARGS,
     schedule=articles_ready,
     start_date=datetime(2024, 1, 1),
     catchup=False,
@@ -28,64 +34,56 @@ from assets import articles_ready, bronze_ready
     },
 )
 def dlt_load():
-    @task()
-    def get_sources(**context) -> list[str]:
+    @task(outlets=[bronze_ready])
+    def load_all_sources(**context) -> dict:
+        """Load all active sources to DuckLake Bronze sequentially."""
+        from datetime import datetime as dt, timezone
+
+        from src.application.load_service import load_articles_to_bronze
         from src.infrastructure.repository.postgres_repository import (
             PostgresCrawlSourceRepository,
         )
         from src.shared.config import Config
         from src.shared.logging import setup_logging
 
-        logger = setup_logging("dlt_load.get_sources")
+        logger = setup_logging("dlt_load")
         config = Config()
 
         params = context["params"]
         source_name = params.get("source_name", "")
+        partition_date = context.get("ds") or dt.now(timezone.utc).strftime("%Y-%m-%d")
 
+        # Get sources to load
         if source_name:
-            logger.info("Loading specific source: %s", source_name)
-            return [source_name]
+            source_names = [source_name]
+        else:
+            source_repo = PostgresCrawlSourceRepository(config.database.url)
+            sources = source_repo.find_active()
+            source_names = [s.name for s in sources]
 
-        source_repo = PostgresCrawlSourceRepository(config.database.url)
-        sources = source_repo.find_active()
-        names = [s.name for s in sources]
-        logger.info("Loading all active sources: %s", names)
-        return names
+        logger.info("Loading %d sources for partition_date=%s", len(source_names), partition_date)
 
-    @task()
-    def load_source(source_name: str, **context) -> dict:
-        from src.application.load_service import load_articles_to_bronze
-        from src.shared.config import Config
-        from src.shared.logging import setup_logging
+        results = []
+        total_loaded = 0
 
-        from datetime import datetime as dt
+        for name in source_names:
+            try:
+                count = load_articles_to_bronze(config, name, partition_date)
+                results.append({"source": name, "loaded": count})
+                total_loaded += count
+                if count > 0:
+                    logger.info("[done] %d articles loaded for source=%s", count, name)
+            except Exception as e:
+                logger.exception("[failed] source=%s", name)
+                results.append({"source": name, "loaded": 0, "error": str(e)[:200]})
 
-        logger = setup_logging(f"dlt_load.{source_name}")
-        partition_date = context.get("ds") or dt.utcnow().strftime("%Y-%m-%d")
-        config = Config()
+        logger.info(
+            "dlt load complete: %d sources, %d total articles",
+            len(results), total_loaded,
+        )
+        return {"sources": len(results), "total_loaded": total_loaded}
 
-        try:
-            logger.info("[load] source=%s partition_date=%s", source_name, partition_date)
-            count = load_articles_to_bronze(config, source_name, partition_date)
-            logger.info("[done] %d articles loaded for source=%s", count, source_name)
-            return {"source": source_name, "loaded": count}
-        except Exception as e:
-            logger.exception("[failed] source=%s", source_name)
-            return {"source": source_name, "loaded": 0, "error": str(e)[:200]}
-
-    @task(outlets=[bronze_ready])
-    def summarize(results: list[dict]) -> None:
-        from src.shared.logging import setup_logging
-
-        logger = setup_logging("dlt_load.summary")
-        total = sum(r["loaded"] for r in results)
-        logger.info("dlt load complete: %d sources, %d total articles", len(results), total)
-        for r in results:
-            logger.info("  %s: loaded=%d", r["source"], r["loaded"])
-
-    sources = get_sources()
-    results = load_source.expand(source_name=sources)
-    summarize(results)
+    load_all_sources()
 
 
 dlt_load()

@@ -8,13 +8,15 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 
 from assets import github_collected
+from common import DEFAULT_ARGS
 
 
 @dag(
     dag_id="github_collect",
+    default_args=DEFAULT_ARGS,
     schedule="0 21 * * *",
     start_date=datetime(2024, 1, 1),
     catchup=False,

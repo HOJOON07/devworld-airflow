@@ -1,8 +1,8 @@
 repos:
   - owner: facebook
     name: react
-    initial_fetch_days: 14
+    initial_fetch_days: 7
 
   - owner: vercel
     name: next.js
-    initial_fetch_days: 14
+    initial_fetch_days: 7

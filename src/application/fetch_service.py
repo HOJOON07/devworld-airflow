@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.domain.entities.article import Article
 from src.domain.interfaces.fetcher import Fetcher
@@ -54,7 +54,7 @@ class FetchService:
                 article = Article(
                     source_id=source_id,
                     url=url,
-                    discovered_at=datetime.utcnow(),
+                    discovered_at=datetime.now(timezone.utc),
                     raw_storage_key=storage_key,
                 )
                 self._article_repo.save(article)

@@ -4,7 +4,6 @@
     "bronze_bucket": "devworld-bronze",
     "silver_bucket": "devworld-silver",
     "gold_analytics_bucket": "devworld-gold-analytics",
-    "ducklake_catalog_url": "postgresql://airflow:airflow@postgres:5432/airflow_db",
     "dbt_project_dir": "/opt/airflow/dbt",
     "dbt_profiles_dir": "/opt/airflow/dbt"
 }

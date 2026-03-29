@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: serving_articles
+    description: Article serving table in PostgreSQL with Full Text Search
+    columns:
+      - name: article_id
+        description: Article UUID
+        tests:
+          - unique
+          - not_null
+      - name: title
+        description: Article title
+        tests:
+          - not_null
+      - name: url
+        description: Article URL
+        tests:
+          - unique
+          - not_null
+
+  - name: serving_trending_topics
+    description: Trending topics serving table in PostgreSQL
+
+  - name: serving_keyword_stats
+    description: Keyword stats serving table in PostgreSQL
+
+  - name: serving_source_stats
+    description: Source stats serving table in PostgreSQL

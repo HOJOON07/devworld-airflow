@@ -1,11 +1,12 @@
-"""GitHub Collect Service — fetches PRs and Issues from GitHub API
-and stores them in PostgreSQL Bronze tables.
+"""GitHub Collect Service — fetches PRs and Issues from GitHub API.
 
-Pipeline: GitHub API → PostgreSQL (Bronze) → AI Enrich → dbt Gold
+Raw First: API JSON을 MinIO에 저장한 후 파싱 결과를 PostgreSQL에 적재.
+Pipeline: GitHub API → Raw JSON (MinIO) + PostgreSQL → AI Enrich → dbt Gold
 """
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -19,6 +20,7 @@ from src.infrastructure.github.github_repository import (
     GitHubPRRepository,
     GitHubRepoRepository,
 )
+from src.infrastructure.storage.s3_storage import S3Storage
 from src.shared.config import Config
 from src.shared.logging import setup_logging
 
@@ -37,12 +39,15 @@ def collect_repo(
     repo: GitHubRepo,
     initial_fetch_days: int = 14,
 ) -> dict:
-    """Collect PRs and Issues for a single GitHub repo into Bronze tables.
+    """Collect PRs and Issues for a single GitHub repo.
 
+    Raw First: API JSON → MinIO, 파싱 결과 → PostgreSQL.
     Returns: {"prs_collected": int, "issues_collected": int}
     """
     api = GitHubAPIClient()
     repos = _build_repositories(config.database.url)
+    storage = S3Storage(config.storage)
+    raw_bucket = config.storage.raw_bucket
 
     watermark = repo.last_collected_at
     if watermark is None:
@@ -50,9 +55,10 @@ def collect_repo(
 
     since_iso = watermark.strftime("%Y-%m-%dT%H:%M:%SZ")
     now = datetime.now(timezone.utc)
+    date_str = now.strftime("%Y-%m-%d")
 
-    prs_collected = _collect_prs(api, repos, repo, since_iso)
-    issues_collected = _collect_issues(api, repos, repo, since_iso)
+    prs_collected = _collect_prs(api, repos, storage, raw_bucket, repo, since_iso, date_str)
+    issues_collected = _collect_issues(api, repos, storage, raw_bucket, repo, since_iso, date_str)
 
     repos["repo"].update_last_collected(repo.id, now)
 
@@ -68,11 +74,15 @@ def collect_repo(
 def _collect_prs(
     api: GitHubAPIClient,
     repos: dict,
+    storage: S3Storage,
+    raw_bucket: str,
     repo: GitHubRepo,
     since_iso: str,
+    date_str: str,
 ) -> int:
     raw_prs = api.list_prs(repo.owner, repo.name, state="all", sort="updated")
     collected = 0
+    repo_key = f"{repo.owner}_{repo.name}"
 
     for raw_pr in raw_prs:
         pr_updated = raw_pr.get("updated_at", "")
@@ -80,7 +90,12 @@ def _collect_prs(
             break
 
         try:
+            # Raw First: API JSON을 MinIO에 저장
+            raw_key = f"raw/github/{repo_key}/{date_str}/pr_{raw_pr['number']}.json"
+            storage.put_object(raw_bucket, raw_key, json.dumps(raw_pr, ensure_ascii=False).encode())
+
             pr_entity = _parse_pr(repo, raw_pr)
+            pr_entity.raw_storage_key = raw_key
             file_records = _collect_pr_files(api, repo, raw_pr["number"])
 
             # diff_text = 상위 10개 파일 patch 합침
@@ -158,20 +173,29 @@ def _parse_pr(repo: GitHubRepo, raw: dict) -> GitHubPR:
 def _collect_issues(
     api: GitHubAPIClient,
     repos: dict,
+    storage: S3Storage,
+    raw_bucket: str,
     repo: GitHubRepo,
     since_iso: str,
+    date_str: str,
 ) -> int:
     raw_issues = api.list_issues(
         repo.owner, repo.name, state="all", sort="updated", since=since_iso,
     )
     collected = 0
+    repo_key = f"{repo.owner}_{repo.name}"
 
     for raw_issue in raw_issues:
         if raw_issue.get("pull_request"):
             continue
 
         try:
+            # Raw First: API JSON을 MinIO에 저장
+            raw_key = f"raw/github/{repo_key}/{date_str}/issue_{raw_issue['number']}.json"
+            storage.put_object(raw_bucket, raw_key, json.dumps(raw_issue, ensure_ascii=False).encode())
+
             issue_entity = _parse_issue(repo, raw_issue)
+            issue_entity.raw_storage_key = raw_key
             repos["issue"].save(issue_entity)
             collected += 1
         except Exception:

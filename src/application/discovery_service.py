@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.domain.entities.article import Article
 from src.domain.entities.crawl_source import CrawlSource
@@ -108,7 +108,7 @@ class DiscoveryService:
                 content_html=item.content_html,
                 author=item.author,
                 published_at=item.published_at,
-                discovered_at=datetime.utcnow(),
+                discovered_at=datetime.now(timezone.utc),
                 raw_storage_key=storage_key,
                 metadata=item.metadata,
             )

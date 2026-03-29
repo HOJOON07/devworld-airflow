@@ -42,6 +42,11 @@ class StorageConfig:
         default_factory=lambda: os.environ.get("STORAGE_REGION", "us-east-1")
     )
 
+    @property
+    def use_ssl(self) -> bool:
+        """Determine SSL based on endpoint URL protocol. R2 uses https, MinIO uses http."""
+        return self.endpoint_url.startswith("https://")
+
 
 @dataclass
 class DatabaseConfig:
@@ -70,9 +75,41 @@ class DatabaseConfig:
 
 
 @dataclass
+class DuckLakeConfig:
+    """DuckLake configuration.
+
+    catalog_url: libpq format for DuckDB ATTACH (host=... port=... dbname=...)
+    data_path: S3 path for DuckLake parquet files
+    """
+    catalog_url: str = field(
+        default_factory=lambda: os.environ.get(
+            "DUCKLAKE_CATALOG_URL",
+            "host=localhost port=5432 dbname=airflow_db user=airflow password=airflow",
+        )
+    )
+    data_path: str = field(
+        default_factory=lambda: os.environ.get(
+            "DUCKLAKE_DATA_PATH", "s3://devworld-lake"
+        )
+    )
+
+    @property
+    def catalog_connection_url(self) -> str:
+        """Convert libpq format to postgres:// URL for dlt DuckLakeCredentials."""
+        parts = dict(p.split("=", 1) for p in self.catalog_url.split() if "=" in p)
+        user = parts.get("user", "airflow")
+        password = parts.get("password", "airflow")
+        host = parts.get("host", "localhost")
+        port = parts.get("port", "5432")
+        dbname = parts.get("dbname", "airflow_db")
+        return f"postgres://{user}:{password}@{host}:{port}/{dbname}"
+
+
+@dataclass
 class Config:
     storage: StorageConfig = field(default_factory=StorageConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    ducklake: DuckLakeConfig = field(default_factory=DuckLakeConfig)
     environment: str = field(
         default_factory=lambda: os.environ.get("ENVIRONMENT", "dev")
     )

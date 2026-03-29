@@ -9,14 +9,14 @@ enrichments as (
     select
         article_id,
         topics
-    from {{ source('public', 'article_enrichments') }}
+    from {{ source('app_db', 'article_enrichments') }}
     where topics is not null
 ),
 
 topic_counts as (
     select
         a.source_name,
-        jsonb_array_elements_text(e.topics) as topic
+        unnest(from_json(e.topics::VARCHAR, '["VARCHAR"]')) as topic
     from articles a
     join enrichments e on a.id = e.article_id
 )

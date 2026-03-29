@@ -2,20 +2,25 @@ devworld:
   target: dev
   outputs:
     dev:
-      type: postgres
-      host: "{{ env_var('DB_HOST', 'localhost') }}"
-      port: "{{ env_var('DB_PORT', '5432') | int }}"
-      user: "{{ env_var('DB_USER', 'devworld') }}"
-      pass: "{{ env_var('DB_PASSWORD', 'devworld') }}"
-      dbname: "{{ env_var('DB_NAME', 'app_db') }}"
-      schema: public
-      threads: 4
-    prod:
-      type: postgres
-      host: "{{ env_var('DB_HOST', 'localhost') }}"
-      port: "{{ env_var('DB_PORT', '5432') | int }}"
-      user: "{{ env_var('DB_USER', 'devworld') }}"
-      pass: "{{ env_var('DB_PASSWORD', 'devworld') }}"
-      dbname: "{{ env_var('DB_NAME', 'app_db') }}"
-      schema: public
-      threads: 4
+      type: duckdb
+      path: ":memory:"
+      extensions:
+        - postgres
+        - ducklake
+        - httpfs
+      settings:
+        s3_endpoint: "{{ env_var('STORAGE_ENDPOINT_URL', 'http://minio:9000') | replace('http://', '') | replace('https://', '') }}"
+        s3_access_key_id: "{{ env_var('STORAGE_ACCESS_KEY', 'minioadmin') }}"
+        s3_secret_access_key: "{{ env_var('STORAGE_SECRET_KEY', 'minioadmin') }}"
+        s3_url_style: path
+        s3_use_ssl: "{{ env_var('S3_USE_SSL', 'false') }}"
+      attach:
+        - path: "ducklake:postgres:dbname={{ env_var('DUCKLAKE_PG_DBNAME', 'airflow_db') }} host={{ env_var('DUCKLAKE_PG_HOST', 'postgres') }} port={{ env_var('DUCKLAKE_PG_PORT', '5432') }} user={{ env_var('POSTGRES_USER', 'airflow') }} password={{ env_var('POSTGRES_PASSWORD', 'airflow') }}"
+          alias: devworld_lake
+          options:
+            data_path: "{{ env_var('DUCKLAKE_DATA_PATH', 's3://devworld-lake/') }}"
+            metadata_schema: devworld_lake
+        - path: "{{ env_var('APP_DB_URL', 'postgresql://devworld:devworld@postgres:5432/app_db') }}"
+          type: postgres
+          alias: app_db
+          read_only: false

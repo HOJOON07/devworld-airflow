@@ -1,12 +1,12 @@
--- Bronze layer: staging view over PostgreSQL articles table.
--- Joins with crawl_sources to add source_name.
+-- Bronze layer: staging view over DuckLake articles table.
+-- Joins with app_db crawl_sources to add source_name.
 
 with articles as (
-    select * from {{ source('public', 'articles') }}
+    select * from {{ source('bronze_raw', 'articles') }}
 ),
 
 sources as (
-    select * from {{ source('public', 'crawl_sources') }}
+    select * from {{ source('app_db', 'crawl_sources') }}
 )
 
 select

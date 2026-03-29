@@ -4,7 +4,7 @@ models:
   - name: mart_articles
     description: Article mart for product serving (Gold layer)
     columns:
-      - name: id
+      - name: article_id
         description: Article UUID
         tests:
           - unique

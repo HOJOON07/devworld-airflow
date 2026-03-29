@@ -1,15 +1,37 @@
 version: 2
 
 sources:
-  - name: public
-    description: PostgreSQL app_db tables
+  - name: bronze_raw
+    database: devworld_lake
+    schema: bronze
+    description: DuckLake Bronze tables loaded by dlt
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
     tables:
       - name: articles
-        description: Crawled articles from all sources
+        description: Bronze articles loaded by dlt into DuckLake
+        loaded_at_field: crawled_at
+
+  - name: app_db
+    database: app_db
+    schema: public
+    description: PostgreSQL app_db operational tables
+    tables:
       - name: crawl_sources
         description: Crawl source registry
       - name: article_enrichments
         description: AI enrichment results (keywords, topics, summary)
+      - name: github_repos
+        description: Tracked GitHub repositories
+      - name: github_prs
+        description: GitHub Pull Requests
+      - name: github_issues
+        description: GitHub Issues
+      - name: github_pr_ai_summaries
+        description: AI-generated PR summaries
+      - name: github_issue_ai_summaries
+        description: AI-generated Issue summaries
 
 models:
   - name: stg_articles

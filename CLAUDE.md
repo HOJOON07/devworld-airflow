@@ -15,11 +15,11 @@ Frontend는 Vercel, Backend는 별도 ECS 서비스로 배포된다.
 
 - **Language**: Python 3.11+
 - **Orchestration**: Apache Airflow 3.1.8 (LocalExecutor)
-- **Load**: dlt (filesystem destination → parquet)
-- **Transform**: dbt (via Astronomer Cosmos)
+- **Load**: dlt (ducklake destination → DuckLake Bronze)
+- **Transform**: dbt-duckdb (via Astronomer Cosmos, DuckLake ATTACH)
 - **AI Enrichment**: Ollama Cloud API (qwen3.5)
-- **DB**: PostgreSQL (RDS) — 운영 메타데이터 + Airflow 백엔드 + dbt Silver/Gold + DuckLake catalog
-- **Lakehouse**: DuckLake (catalog: PostgreSQL, storage: R2, parquet 기반, 분석용)
+- **DB**: PostgreSQL (RDS) — 운영 메타데이터 + Airflow 백엔드 + DuckLake catalog + serving 스키마
+- **Lakehouse**: DuckLake (catalog: PostgreSQL, storage: R2/MinIO, parquet 기반, Bronze/Silver/Gold 주 저장소)
 - **Object Storage**: MinIO (dev) / Cloudflare R2 (prod)
 - **Source 관리**: config/sources.yml (YAML → DB sync)
 - **Infra**: AWS, ECS Fargate, Docker, Terraform, ECR, ALB, CloudWatch, Secrets Manager
@@ -42,7 +42,7 @@ Frontend는 Vercel, Backend는 별도 ECS 서비스로 배포된다.
 ## 데이터 흐름
 
 ```
-crawl(discover+fetch+parse) → dlt_load(Bronze parquet) → dbt_transform(Silver/Gold) → ai_enrich(keywords/topics) → Gold refresh
+crawl(discover+fetch+parse) → dlt_load(DuckLake Bronze) → dbt_transform(DuckLake Silver/Gold) → ai_enrich(keywords/topics) → dbt_reverse_etl(PostgreSQL serving) → Gold refresh
 ```
 
 각 단계는 독립 DAG로 분리한다. 하나의 DAG에 여러 책임을 몰아넣지 않는다.
@@ -53,9 +53,10 @@ crawl(discover+fetch+parse) → dlt_load(Bronze parquet) → dbt_transform(Silve
 |---|---|---|
 | `blog_crawl` | 수동 | 단일 소스 크롤링 |
 | `blog_crawl_all` | 매일 00:00 | 전체 활성 소스 크롤링 (discover+fetch+parse) |
-| `dlt_load` | 매일 01:00 | PostgreSQL articles → Bronze parquet (MinIO) |
-| `dbt_transform` | 매일 02:00 | Bronze view → Silver table → Gold table (PostgreSQL, Cosmos) |
-| `ai_enrich` | 매일 03:00 | Silver 아티클 AI enrichment (keywords/topics/summary) |
+| `dlt_load` | 매일 01:00 | PostgreSQL articles → DuckLake Bronze (dlt ducklake destination) |
+| `dbt_transform` | 매일 02:00 | DuckLake Bronze → Silver → Gold (dbt-duckdb, Cosmos) |
+| `ai_enrich` | 매일 03:00 | DuckLake Silver → AI enrichment → article_enrichments (PostgreSQL) |
+| `dbt_reverse_etl` | ai_enrich 후 | DuckLake Gold → PostgreSQL serving 스키마 export |
 
 ### GitHub 파이프라인 DAG
 
@@ -87,20 +88,19 @@ crawl(discover+fetch+parse) → dlt_load(Bronze parquet) → dbt_transform(Silve
 | 레이어 | 역할 | 저장소 | 포맷 |
 |---|---|---|---|
 | **Raw** | 원본 보존 | MinIO (dev) / R2 (prod) | HTML |
-| **Bronze (parquet)** | raw 정형화 스냅샷 | MinIO / R2 | parquet (dlt) |
-| **Bronze (dbt)** | 쿼리 가능한 정형화 | PostgreSQL | view (stg_articles) |
-| **Silver** | 정규화/정제/dedup | PostgreSQL | table (int_articles_cleaned) |
-| **Gold Serving** | 프로덕트 서빙용 | PostgreSQL | table (mart_articles) |
-| **Gold Analytics** | 분석/통계용 | MinIO/R2 + DuckLake | parquet (미구현) |
+| **Bronze** | raw 정형화 | DuckLake (MinIO/R2) | Parquet (dlt) |
+| **Silver** | 정규화/정제/dedup | DuckLake (MinIO/R2) | Parquet (dbt) |
+| **Gold** | 분석/집계/서빙 준비 | DuckLake (MinIO/R2) | Parquet (dbt) |
+| **Gold Serving** | 프로덕트 서빙용 | PostgreSQL (app_db.serving) | table (dbt reverse_etl) |
 
 > Gold를 "집계 전용"으로 오해하지 말 것. 아티클 단위 서빙 데이터도 Gold에 포함.
 
-**서빙 경로**: Raw HTML(MinIO) → 크롤러가 articles 테이블에 적재(PostgreSQL) → dbt Bronze view → dbt Silver table → AI Enrich(article_enrichments) → dbt Gold table(mart_articles) → Nest.js API가 조회
+**서빙 경로**: Raw HTML(MinIO) → 크롤러가 articles 테이블에 적재(PostgreSQL) → dlt가 DuckLake Bronze 적재 → dbt Bronze view → dbt Silver table → AI Enrich(article_enrichments) → dbt Gold table → dbt reverse_etl → PostgreSQL serving 스키마 → Nest.js API가 조회
 
-**DuckDB/DuckLake**: 상주 서버가 아닌 분석 엔진. catalog은 PostgreSQL, 데이터는 R2 parquet. dbt transform 경로와는 별개. Bronze parquet을 SQL로 조회하는 용도.
+**DuckDB/DuckLake**: DuckLake는 Bronze/Silver/Gold 레이어의 주 저장소. catalog은 PostgreSQL(airflow_db), 데이터는 R2/MinIO에 Parquet로 저장. dbt-duckdb가 DuckLake에 ATTACH하여 변환 수행. 최종 서빙 데이터는 reverse_etl로 PostgreSQL에 export.
 
 **PostgreSQL 역할 정리**:
-- `app_db`: articles, crawl_sources, article_enrichments, dbt Silver/Gold 테이블 (Nest.js가 조회)
+- `app_db`: articles(운영), crawl_sources, article_enrichments, serving 스키마(reverse_etl export — Nest.js가 조회)
 - `airflow_db`: Airflow 메타데이터 + DuckLake catalog
 - 운영 메타데이터 (crawl_jobs, crawl_sources)
 
@@ -142,7 +142,7 @@ crawl(discover+fetch+parse) → dlt_load(Bronze parquet) → dbt_transform(Silve
 - 필요 이상으로 인프라 복잡도 올리기
 - storage key, schema 의미, dedup 의미를 조용히 변경
 - dbt가 관리하는 Silver/Gold 테이블을 직접 수정하기 (dbt run으로만 갱신)
-- DuckDB/DuckLake를 서비스 DB 대체재로 쓰기 (분석 전용)
+- DuckLake를 Nest.js API가 직접 조회하기 (반드시 PostgreSQL serving 스키마를 통해 서빙)
 
 ## 변경 시 원칙
 

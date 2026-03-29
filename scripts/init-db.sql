@@ -18,6 +18,11 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'app_db')\gexec
 GRANT ALL PRIVILEGES ON SCHEMA public TO devworld;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO devworld;
 
+-- Serving schema for reverse_etl (dbt creates tables here)
+CREATE SCHEMA IF NOT EXISTS serving;
+GRANT ALL PRIVILEGES ON SCHEMA serving TO devworld;
+ALTER DEFAULT PRIVILEGES IN SCHEMA serving GRANT ALL ON TABLES TO devworld;
+
 -- ============================================================
 -- crawl_sources: 크롤링 대상 소스 레지스트리
 -- ============================================================

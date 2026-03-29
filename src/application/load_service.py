@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+import os
+from datetime import datetime, timezone
 
 import dlt
 from sqlalchemy import create_engine, text
@@ -9,6 +10,16 @@ from src.shared.config import Config
 from src.shared.logging import setup_logging
 
 logger = setup_logging(__name__)
+
+
+def _configure_s3_env(config: Config) -> None:
+    """Set S3 environment variables for DuckLake/DuckDB data file access."""
+    storage = config.storage
+    os.environ.setdefault("AWS_ACCESS_KEY_ID", storage.access_key)
+    os.environ.setdefault("AWS_SECRET_ACCESS_KEY", storage.secret_key)
+    os.environ.setdefault("AWS_ENDPOINT_URL", storage.endpoint_url)
+    os.environ.setdefault("AWS_REGION", storage.region)
+    os.environ.setdefault("AWS_ALLOW_HTTP", "true")
 
 
 def _fetch_articles_by_source(
@@ -37,12 +48,13 @@ def _fetch_articles_by_source(
                 FROM articles a
                 JOIN crawl_sources cs ON a.source_id = cs.id
                 WHERE cs.name = :source_name
+                  AND CAST(a.discovered_at AS date) = CAST(:partition_date AS date)
                 """
             ),
-            {"source_name": source_name},
+            {"source_name": source_name, "partition_date": partition_date},
         ).mappings().all()
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     return [
         {
             **dict(row),
@@ -56,7 +68,7 @@ def _fetch_articles_by_source(
 def load_articles_to_bronze(
     config: Config, source_name: str, partition_date: str
 ) -> int:
-    """Load articles from PostgreSQL to MinIO bronze bucket as parquet.
+    """Load articles from PostgreSQL to DuckLake Bronze as parquet.
 
     Args:
         config: Application config.
@@ -68,28 +80,43 @@ def load_articles_to_bronze(
     """
     storage = config.storage
     db = config.database
+    ducklake = config.ducklake
 
     records = _fetch_articles_by_source(db.url, source_name, partition_date)
     if not records:
         logger.info("No articles to load for source=%s partition_date=%s", source_name, partition_date)
         return 0
 
+    _configure_s3_env(config)
+
+    from dlt.common.storages.configuration import FilesystemConfiguration
+    from dlt.destinations.impl.ducklake.configuration import DuckLakeCredentials
+
+    storage_config = FilesystemConfiguration(
+        bucket_url=ducklake.data_path,
+        credentials={
+            "aws_access_key_id": storage.access_key,
+            "aws_secret_access_key": storage.secret_key,
+            "endpoint_url": storage.endpoint_url,
+            "region_name": storage.region,
+        },
+    )
+
+    credentials = DuckLakeCredentials(
+        ducklake_name="devworld_lake",
+        catalog=ducklake.catalog_connection_url,
+        storage=storage_config,
+    )
+
     pipeline = dlt.pipeline(
         pipeline_name=f"bronze_{source_name}",
-        destination=dlt.destinations.filesystem(
-            bucket_url=f"s3://{storage.bronze_bucket}",
-            credentials={
-                "aws_access_key_id": storage.access_key,
-                "aws_secret_access_key": storage.secret_key,
-                "endpoint_url": storage.endpoint_url,
-            },
-        ),
-        dataset_name=f"articles/{source_name}",
+        destination=dlt.destinations.ducklake(credentials=credentials),
+        dataset_name="bronze",
     )
 
     @dlt.resource(
         name="articles",
-        write_disposition="replace",
+        write_disposition="append",
         columns={
             "metadata": {"data_type": "text"},
             "published_at": {"data_type": "text"},
@@ -98,10 +125,7 @@ def load_articles_to_bronze(
     def _resource():
         yield records
 
-    load_info = pipeline.run(
-        _resource(),
-        loader_file_format="parquet",
-    )
+    load_info = pipeline.run(_resource())
 
     logger.info("Bronze load complete for source=%s: %s", source_name, load_info)
     return len(records)

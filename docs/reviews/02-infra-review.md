@@ -2,7 +2,7 @@
 
 **리뷰어**: infra-reviewer
 **리뷰 일자**: 2026-03-27
-**수정 일자**: 2026-03-28
+**수정 일자**: 2026-03-29 (DuckLake 전환 후 추가 리뷰)
 
 ---
 
@@ -123,3 +123,50 @@
 ### 프로덕션 배포 경로
 - git push → Docker build → ECR push → ECS update-service
 - CI/CD 파이프라인 미정의 (수동) — 추후 GitHub Actions 추가 검토
+
+---
+
+## DuckLake 전환 후 추가 리뷰 (2026-03-29)
+
+### Critical (2건)
+
+**C4. Terraform ECS Task Definition에 DuckLake/파이프라인 환경변수 대량 누락**
+- ECS environment에 `AIRFLOW__CORE__EXECUTOR`와 `LOAD_EXAMPLES`만 존재
+- 누락: `DUCKLAKE_CATALOG_URL`, `DUCKLAKE_DATA_PATH`, `DB_HOST/PORT/NAME/USER/PASSWORD`, `RAW_BUCKET`, `STORAGE_BRONZE_BUCKET`, `LAKE_BUCKET`, `STORAGE_REGION`, `OLLAMA_MODEL`, `APP_DB_URL`, `PYTHONPATH`
+- **영향**: 프로덕션 ECS에서 모든 파이프라인 DAG 실패
+
+**C5. IAM ecs_execution_secrets 정책에 secret ARN 3개 누락**
+- 현재: `db_credentials`, `airflow_secret_key`, `r2_credentials`만 허용
+- 누락: `fernet_key`, `github_token`, `ollama_api_key`
+- **영향**: ECS 컨테이너 시작 실패 (`ResourceInitializationError`)
+
+### Warning (4건)
+
+**W13. DUCKLAKE_DATA_PATH와 LAKE_BUCKET 불일치**
+- `.env`: `DUCKLAKE_DATA_PATH=s3://devworld-bronze`, `LAKE_BUCKET` 미정의 (기본값 `devworld-lake`)
+- DuckLake parquet이 bronze 버킷에 저장, lake 버킷은 미사용
+
+**W14. dbt profiles.yml DuckLake attach에 DATA_PATH 누락**
+- dbt만 DATA_PATH 없이 DuckLake에 attach → catalog 기본 경로 사용
+- dlt, enrich_service, setup.py는 DATA_PATH 명시
+
+**W15. APP_DB_URL 환경변수 미정의**
+- `dbt/profiles.yml`이 참조하나 docker-compose와 .env에 미정의
+- 로컬: 기본값으로 동작. 프로덕션: RDS 주소 필요
+
+**W16. `s3_use_ssl=false` 프로덕션 하드코딩**
+- dbt profiles.yml, setup.py, enrich_service.py 모두 `false` 하드코딩
+- R2는 HTTPS 필수 → 프로덕션에서 연결 실패
+
+### 로컬 vs 프로덕션 상태 요약
+
+| 항목 | 로컬 (docker-compose) | 프로덕션 (Terraform/ECS) |
+|---|---|---|
+| `DUCKLAKE_CATALOG_URL` | ✅ | **누락** |
+| `DUCKLAKE_DATA_PATH` | ✅ | **누락** |
+| `DB_*` (app_db) | ✅ | **누락** |
+| `APP_DB_URL` | ⚠️ 기본값 | **누락** |
+| S3 SSL 설정 | ✅ (HTTP) | **오류** (HTTPS 필요) |
+| IAM secret 권한 | N/A | **3개 누락** |
+
+> **결론**: 로컬은 DuckLake 전환 정상 반영. 프로덕션 Terraform은 DuckLake 이전 상태. C4, C5 해결 필수.

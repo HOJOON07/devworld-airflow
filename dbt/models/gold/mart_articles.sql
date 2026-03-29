@@ -1,13 +1,5 @@
--- Gold layer: article mart for API serving.
+-- Gold layer: article mart for analytics/serving.
 -- Joins Silver articles with AI enrichments (keywords, topics, summary).
--- Includes search_vector for PostgreSQL Full Text Search (GIN index).
-
-{{
-    config(
-        materialized='table',
-        post_hook="CREATE INDEX IF NOT EXISTS idx_mart_articles_search ON {{ this }} USING GIN (search_vector)"
-    )
-}}
 
 with cleaned as (
     select * from {{ ref('int_articles_cleaned') }}
@@ -19,11 +11,11 @@ enrichments as (
         keywords,
         topics,
         summary as ai_summary
-    from {{ source('public', 'article_enrichments') }}
+    from {{ source('app_db', 'article_enrichments') }}
 )
 
 select
-    c.id,
+    c.id as article_id,
     c.source_id,
     c.source_name,
     c.url,
@@ -38,12 +30,9 @@ select
     e.keywords,
     e.topics,
     e.ai_summary,
-
-    -- Full Text Search 벡터 (title A > source_name B > content_text C)
-    setweight(to_tsvector('simple', coalesce(c.title, '')), 'A') ||
-    setweight(to_tsvector('simple', coalesce(c.source_name, '')), 'B') ||
-    setweight(to_tsvector('simple', coalesce(c.content_text, '')), 'C')
-    as search_vector
+    coalesce(json_array_length(e.keywords::JSON), 0) as keyword_count,
+    e.ai_summary is not null as has_summary,
+    now() as created_at
 
 from cleaned c
 left join enrichments e on c.id = e.article_id

@@ -15,11 +15,22 @@ clean-targets:
 models:
   devworld:
     bronze:
-      +materialized: view
+      +database: devworld_lake
       +schema: bronze
+      +materialized: view
     silver:
+      +database: devworld_lake
+      +schema: silver
       +materialized: table
-      +schema: public
     gold:
+      +database: devworld_lake
+      +schema: gold
       +materialized: table
-      +schema: public
+    github_gold:
+      +database: devworld_lake
+      +schema: github_gold
+      +materialized: table
+    reverse_etl:
+      +database: app_db
+      +schema: serving
+      +materialized: table

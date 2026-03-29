@@ -8,13 +8,15 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 
 from assets import silver_ready, enrichments_ready
+from common import DEFAULT_ARGS
 
 
 @dag(
     dag_id="ai_enrich",
+    default_args=DEFAULT_ARGS,
     schedule=silver_ready,
     start_date=datetime(2024, 1, 1),
     catchup=False,
