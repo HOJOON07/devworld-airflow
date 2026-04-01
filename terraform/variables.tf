@@ -104,3 +104,10 @@ variable "acm_certificate_arn" {
   type        = string
   default     = ""
 }
+
+# Storage
+variable "storage_region" {
+  description = "Region for object storage (R2/MinIO)"
+  type        = string
+  default     = "auto"
+}

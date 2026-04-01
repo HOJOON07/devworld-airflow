@@ -209,3 +209,11 @@ CREATE INDEX IF NOT EXISTS idx_github_prs_state ON github_prs(state);
 CREATE INDEX IF NOT EXISTS idx_github_issues_repo ON github_issues(repo_id);
 CREATE INDEX IF NOT EXISTS idx_github_issues_state ON github_issues(state);
 CREATE INDEX IF NOT EXISTS idx_github_pr_files_pr ON github_pr_files(pr_id);
+
+\c postgres
+SELECT 'CREATE DATABASE platform_db OWNER devworld'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'platform_db')\gexec
+
+\c platform_db
+GRANT ALL PRIVILEGES ON SCHEMA public TO devworld;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO devworld;

@@ -37,6 +37,21 @@ resource "aws_ecs_task_definition" "api_server" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "PYTHONPATH", value = "/opt/airflow" },
+        { name = "AIRFLOW__CORE__PARALLELISM", value = "8" },
+        { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "4" },
+        { name = "AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG", value = "2" },
+        { name = "AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL", value = "30" },
+        { name = "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", value = "false" },
+        { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },
+        { name = "RAW_BUCKET", value = "devworld-raw" },
+        { name = "LAKE_BUCKET", value = "devworld-lake" },
+        { name = "STORAGE_REGION", value = var.storage_region },
+        { name = "S3_USE_SSL", value = "true" },
+        { name = "DUCKLAKE_DATA_PATH", value = "s3://devworld-lake/" },
+        { name = "OLLAMA_MODEL", value = "qwen3.5:397b" },
+        { name = "DB_NAME", value = "app_db" },
+        { name = "DB_USER", value = var.db_username },
       ]
 
       secrets = [
@@ -71,6 +86,26 @@ resource "aws_ecs_task_definition" "api_server" {
         {
           name      = "STORAGE_ENDPOINT_URL"
           valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:endpoint::"
+        },
+        {
+          name      = "DB_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "DB_PORT"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_CATALOG_URL"
+          valueFrom = "${aws_secretsmanager_secret.ducklake_catalog_url.arn}"
+        },
+        {
+          name      = "APP_DB_URL"
+          valueFrom = "${aws_secretsmanager_secret.app_db_url.arn}"
         },
       ]
 
@@ -117,6 +152,21 @@ resource "aws_ecs_task_definition" "scheduler" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "PYTHONPATH", value = "/opt/airflow" },
+        { name = "AIRFLOW__CORE__PARALLELISM", value = "8" },
+        { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "4" },
+        { name = "AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG", value = "2" },
+        { name = "AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL", value = "30" },
+        { name = "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", value = "false" },
+        { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },
+        { name = "RAW_BUCKET", value = "devworld-raw" },
+        { name = "LAKE_BUCKET", value = "devworld-lake" },
+        { name = "STORAGE_REGION", value = var.storage_region },
+        { name = "S3_USE_SSL", value = "true" },
+        { name = "DUCKLAKE_DATA_PATH", value = "s3://devworld-lake/" },
+        { name = "OLLAMA_MODEL", value = "qwen3.5:397b" },
+        { name = "DB_NAME", value = "app_db" },
+        { name = "DB_USER", value = var.db_username },
       ]
 
       secrets = [
@@ -147,6 +197,26 @@ resource "aws_ecs_task_definition" "scheduler" {
         {
           name      = "STORAGE_ENDPOINT_URL"
           valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:endpoint::"
+        },
+        {
+          name      = "DB_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "DB_PORT"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_CATALOG_URL"
+          valueFrom = "${aws_secretsmanager_secret.ducklake_catalog_url.arn}"
+        },
+        {
+          name      = "APP_DB_URL"
+          valueFrom = "${aws_secretsmanager_secret.app_db_url.arn}"
         },
       ]
 

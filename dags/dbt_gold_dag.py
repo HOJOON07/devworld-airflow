@@ -63,13 +63,37 @@ def dbt_gold():
     )
 
     @task()
-    def create_fts_index():
-        """PostgreSQL serving_articles에 tsvector + GIN 인덱스 생성.
+    def cleanup_serving_tables():
+        """reverse_etl 전에 serving 테이블을 DROP CASCADE.
 
-        dbt-duckdb는 DuckDB를 통해 SQL을 실행하므로
-        PostgreSQL 전용 DDL(tsvector, GIN)을 post_hook으로 실행할 수 없다.
-        이 task에서 PostgreSQL에 직접 연결하여 FTS를 생성한다.
+        DuckDB postgres extension이 PostgreSQL GIN 인덱스를 인식하지 못해
+        dbt의 DROP TABLE이 실패한다. 사전에 PostgreSQL에 직접 연결하여
+        CASCADE DROP하면 인덱스도 함께 삭제되어 충돌을 방지한다.
         """
+        from sqlalchemy import create_engine, text
+        from src.shared.config import Config
+        from src.shared.logging import setup_logging
+
+        logger = setup_logging("dbt_gold.cleanup")
+        config = Config()
+        engine = create_engine(config.database.url, pool_pre_ping=True)
+
+        tables = [
+            "serving.serving_articles",
+            "serving.serving_trending_topics",
+            "serving.serving_keyword_stats",
+            "serving.serving_source_stats",
+        ]
+        with engine.connect() as conn:
+            for table in tables:
+                conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+            conn.commit()
+
+        logger.info("Serving tables cleaned up for reverse_etl")
+
+    @task()
+    def create_fts_index():
+        """PostgreSQL serving_articles에 tsvector + GIN 인덱스 생성."""
         from sqlalchemy import create_engine, text
         from src.shared.config import Config
         from src.shared.logging import setup_logging
@@ -87,6 +111,8 @@ def dbt_gold():
                 "UPDATE serving.serving_articles SET search_vector = "
                 "setweight(to_tsvector('simple', coalesce(title, '')), 'A') || "
                 "setweight(to_tsvector('simple', coalesce(source_name, '')), 'B') || "
+                "setweight(to_tsvector('simple', coalesce(array_to_string(ARRAY(SELECT jsonb_array_elements_text(coalesce(keywords::jsonb, '[]'::jsonb))), ' '), '')), 'B') || "
+                "setweight(to_tsvector('simple', coalesce(array_to_string(ARRAY(SELECT jsonb_array_elements_text(coalesce(topics::jsonb, '[]'::jsonb))), ' '), '')), 'B') || "
                 "setweight(to_tsvector('simple', coalesce(content_text, '')), 'C')"
             ))
             conn.execute(text(
@@ -103,7 +129,7 @@ def dbt_gold():
         logger = setup_logging("dbt_gold")
         logger.info("Gold transform + reverse ETL + FTS complete")
 
-    gold_transform >> reverse_etl >> create_fts_index() >> mark_gold_ready()
+    gold_transform >> cleanup_serving_tables() >> reverse_etl >> create_fts_index() >> mark_gold_ready()
 
 
 dbt_gold()

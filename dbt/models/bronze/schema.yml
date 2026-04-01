@@ -26,6 +26,8 @@ sources:
         description: Tracked GitHub repositories
       - name: github_prs
         description: GitHub Pull Requests
+      - name: github_pr_files
+        description: GitHub PR file changes
       - name: github_issues
         description: GitHub Issues
       - name: github_pr_ai_summaries
@@ -38,9 +40,8 @@ models:
     description: Staged articles with source name joined
     columns:
       - name: id
-        description: Article UUID
+        description: Article UUID (중복 가능 — Bronze는 append-only, dedup은 Silver)
         tests:
-          - unique
           - not_null
       - name: url
         description: Article URL

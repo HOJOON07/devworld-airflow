@@ -53,7 +53,7 @@ crawl(discover+fetch+parse) → dlt_load(DuckLake Bronze) → dbt_transform(Duck
 |---|---|---|
 | `blog_crawl` | 수동 | 단일 소스 크롤링 |
 | `blog_crawl_all` | 매일 00:00 | 전체 활성 소스 크롤링 (discover+fetch+parse) |
-| `dlt_load` | 매일 01:00 | PostgreSQL articles → DuckLake Bronze (dlt ducklake destination) |
+| `dlt_load` | 매일 01:00 | PostgreSQL articles → DuckLake Bronze (dlt ducklake destination, 순차 실행) |
 | `dbt_transform` | 매일 02:00 | DuckLake Bronze → Silver → Gold (dbt-duckdb, Cosmos) |
 | `ai_enrich` | 매일 03:00 | DuckLake Silver → AI enrichment → article_enrichments (PostgreSQL) |
 | `dbt_reverse_etl` | ai_enrich 후 | DuckLake Gold → PostgreSQL serving 스키마 export |
@@ -103,6 +103,21 @@ crawl(discover+fetch+parse) → dlt_load(DuckLake Bronze) → dbt_transform(Duck
 - `app_db`: articles(운영), crawl_sources, article_enrichments, serving 스키마(reverse_etl export — Nest.js가 조회)
 - `airflow_db`: Airflow 메타데이터 + DuckLake catalog
 - 운영 메타데이터 (crawl_jobs, crawl_sources)
+
+## DuckLake 연결
+
+DuckLake catalog 연결에 두 가지 포맷이 공존한다. 혼동 주의.
+
+| 사용 위치 | 포맷 | 예시 |
+|---|---|---|
+| DuckDB ATTACH (dbt profiles.yml, setup.py) | `ducklake:postgres:` + libpq params | `ducklake:postgres:dbname=airflow_db host=postgres ...` |
+| dlt DuckLakeCredentials (load_service.py) | `postgres://` URL | `postgres://airflow:airflow@postgres:5432/airflow_db` |
+
+- DuckDB `ATTACH`는 `ducklake:postgres:` 접두어 + libpq 키=값 파라미터 (NOT `postgresql://` URL)
+- dlt `DuckLakeCredentials`는 `postgres://` URL 형식 (DuckDB의 libpq 형식과 다름)
+- 모든 DuckLake 연결에 `METADATA_SCHEMA 'devworld_lake'` 필수
+- DuckLake alias는 `devworld_lake` (dbt_project.yml의 `+database: devworld_lake`와 일치)
+- `dlt_load` DAG은 소스를 순차(sequential) 처리한다. DuckLake PostgreSQL catalog의 `CREATE SCHEMA` race condition 때문에 병렬 실행 불가
 
 ## AI Enrichment
 

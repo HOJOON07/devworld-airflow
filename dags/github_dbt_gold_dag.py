@@ -55,12 +55,36 @@ def github_dbt_gold():
         group_id="github_reverse_etl",
         project_config=project_config,
         render_config=RenderConfig(
-            select=["serving_github_prs", "serving_github_issues"],
+            select=["serving_github_prs", "serving_github_issues", "serving_github_pr_files", "serving_github_repos"],
         ),
         profile_config=profile_config,
         execution_config=execution_config,
         operator_args={"install_deps": True},
     )
+
+    @task()
+    def cleanup_github_serving_tables():
+        """reverse_etl 전에 GitHub serving 테이블을 DROP CASCADE."""
+        from sqlalchemy import create_engine, text
+        from src.shared.config import Config
+        from src.shared.logging import setup_logging
+
+        logger = setup_logging("github_dbt_gold.cleanup")
+        config = Config()
+        engine = create_engine(config.database.url, pool_pre_ping=True)
+
+        tables = [
+            "serving.serving_github_prs",
+            "serving.serving_github_issues",
+            "serving.serving_github_pr_files",
+            "serving.serving_github_repos",
+        ]
+        with engine.connect() as conn:
+            for table in tables:
+                conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+            conn.commit()
+
+        logger.info("GitHub serving tables cleaned up for reverse_etl")
 
     @task()
     def create_github_fts_index():
@@ -98,7 +122,7 @@ def github_dbt_gold():
         logger = setup_logging("github_dbt_gold")
         logger.info("GitHub Gold transform + reverse ETL + FTS complete")
 
-    github_gold_transform >> github_reverse_etl >> create_github_fts_index() >> mark_github_gold_ready()
+    github_gold_transform >> cleanup_github_serving_tables() >> github_reverse_etl >> create_github_fts_index() >> mark_github_gold_ready()
 
 
 github_dbt_gold()

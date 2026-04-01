@@ -292,6 +292,7 @@ keywords
 │                 Source: PostgreSQL articles           │
 │                 Destination: DuckLake (ducklake)      │
 │                 Output: Bronze Parquet on MinIO/R2    │
+│                 ⚠ 순차 실행 (아래 Note 참고)           │
 ├────────────────────────────────────────────────────┤
 │  dbt-duckdb   — 변환 (Bronze → Silver → Gold)        │
 │                 Engine: DuckDB (in-memory)            │
@@ -317,6 +318,24 @@ keywords
 │                 Bronze + Silver + Gold                │
 └────────────────────────────────────────────────────┘
 ```
+
+> **Note: dlt_load 순차 실행** — dlt ducklake destination은 PostgreSQL catalog에 `CREATE SCHEMA`를
+> 실행하는데, 병렬 실행 시 race condition이 발생한다. 따라서 `dlt_load` DAG은 소스를 순차(sequential)로
+> 처리하며 병렬 Dynamic Task Mapping을 사용하지 않는다.
+
+### DuckLake 연결 방식
+
+DuckLake catalog 연결에 두 가지 포맷이 공존한다. 혼동하지 않도록 주의.
+
+| 사용 위치 | 포맷 | 예시 |
+|---|---|---|
+| **DuckDB ATTACH** (dbt profiles.yml, setup.py) | `ducklake:postgres:` + libpq params | `ducklake:postgres:dbname=airflow_db host=postgres port=5432 user=airflow password=airflow` |
+| **dlt DuckLakeCredentials** (load_service.py) | `postgres://` URL | `postgres://airflow:airflow@postgres:5432/airflow_db` |
+
+- DuckDB의 `ATTACH` 명령은 `ducklake:postgres:` 접두어 + libpq 키=값 파라미터를 사용한다
+- dlt의 `DuckLakeCredentials`는 `postgres://` URL 형식을 사용한다 (`postgresql://` 아님)
+- 모든 DuckLake 연결에 `METADATA_SCHEMA 'devworld_lake'`가 필수
+- DuckLake alias는 `devworld_lake` (profiles.yml, setup.py 모두 동일)
 
 ### PostgreSQL 역할 분리
 
@@ -381,6 +400,19 @@ PostgreSQL (단일 RDS 인스턴스)
 │  └───────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
+
+### DuckDB UI (로컬 개발)
+
+DuckLake 데이터를 브라우저에서 SQL 쿼리할 수 있는 개발 도구.
+
+```
+make duckdb-ui    →   http://localhost:4213
+```
+
+- `scripts/duckdb-ui.py`를 실행하여 DuckDB UI 서버 시작
+- DuckLake를 `devworld_lake`로 ATTACH + app_db를 `app_db`로 ATTACH
+- Bronze/Silver/Gold 테이블 및 PostgreSQL 운영 테이블을 한 곳에서 조회 가능
+- 로컬 개발/디버깅 전용, 프로덕션에서는 사용하지 않음
 
 ### 프로덕션 AWS 인프라
 

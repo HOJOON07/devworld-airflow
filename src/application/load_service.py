@@ -23,9 +23,9 @@ def _configure_s3_env(config: Config) -> None:
 
 
 def _fetch_articles_by_source(
-    database_url: str, source_name: str, partition_date: str
+    database_url: str, source_name: str
 ) -> list[dict]:
-    """Query articles for a specific source and partition date."""
+    """Query all articles for a specific source."""
     engine = create_engine(database_url, pool_pre_ping=True)
     with engine.connect() as conn:
         rows = conn.execute(
@@ -48,17 +48,16 @@ def _fetch_articles_by_source(
                 FROM articles a
                 JOIN crawl_sources cs ON a.source_id = cs.id
                 WHERE cs.name = :source_name
-                  AND CAST(a.discovered_at AS date) = CAST(:partition_date AS date)
+                ORDER BY a.discovered_at ASC
                 """
             ),
-            {"source_name": source_name, "partition_date": partition_date},
+            {"source_name": source_name},
         ).mappings().all()
 
     now = datetime.now(timezone.utc).isoformat()
     return [
         {
             **dict(row),
-            "partition_date": partition_date,
             "crawled_at": now,
         }
         for row in rows
@@ -70,10 +69,13 @@ def load_articles_to_bronze(
 ) -> int:
     """Load articles from PostgreSQL to DuckLake Bronze as parquet.
 
+    Uses dlt incremental on discovered_at to only load new articles.
+    Already-loaded articles are automatically skipped.
+
     Args:
         config: Application config.
         source_name: Crawl source name to filter by.
-        partition_date: Date string (YYYY-MM-DD) to partition by.
+        partition_date: Date string (YYYY-MM-DD), used for logging only.
 
     Returns:
         Number of articles loaded.
@@ -82,9 +84,9 @@ def load_articles_to_bronze(
     db = config.database
     ducklake = config.ducklake
 
-    records = _fetch_articles_by_source(db.url, source_name, partition_date)
+    records = _fetch_articles_by_source(db.url, source_name)
     if not records:
-        logger.info("No articles to load for source=%s partition_date=%s", source_name, partition_date)
+        logger.info("No articles for source=%s", source_name)
         return 0
 
     _configure_s3_env(config)
@@ -116,7 +118,8 @@ def load_articles_to_bronze(
 
     @dlt.resource(
         name="articles",
-        write_disposition="append",
+        write_disposition="merge",
+        primary_key="id",
         columns={
             "metadata": {"data_type": "text"},
             "published_at": {"data_type": "text"},
@@ -127,5 +130,9 @@ def load_articles_to_bronze(
 
     load_info = pipeline.run(_resource())
 
-    logger.info("Bronze load complete for source=%s: %s", source_name, load_info)
-    return len(records)
+    loaded_count = load_info.metrics.get("load", {}).get("loaded_count", len(records))
+    logger.info(
+        "Bronze load complete for source=%s partition_date=%s loaded=%s",
+        source_name, partition_date, loaded_count,
+    )
+    return loaded_count

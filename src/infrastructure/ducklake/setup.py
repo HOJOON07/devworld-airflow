@@ -29,7 +29,7 @@ def create_ducklake_connection(config: Config | None = None) -> duckdb.DuckDBPyC
     conn = duckdb.connect(":memory:")
 
     # Install and load extensions
-    for ext in ["ducklake", "httpfs"]:
+    for ext in ["postgres", "httpfs", "ducklake"]:
         conn.install_extension(ext)
         conn.load_extension(ext)
 
@@ -42,11 +42,11 @@ def create_ducklake_connection(config: Config | None = None) -> duckdb.DuckDBPyC
     conn.execute(f"SET s3_use_ssl={'true' if storage.use_ssl else 'false'}")
     conn.execute("SET s3_url_style='path'")
 
-    # Attach DuckLake — ducklake:postgres:// prefix 방식 (dlt와 동일)
-    catalog_conn_url = _esc(config.ducklake.catalog_connection_url)
+    # Attach DuckLake — ducklake:postgres: + libpq params
+    catalog_url = _esc(config.ducklake.catalog_url)
     data_path = _esc(config.ducklake.data_path)
     conn.execute(
-        f"ATTACH 'ducklake:{catalog_conn_url}' AS devworld_lake (DATA_PATH '{data_path}', METADATA_SCHEMA 'devworld_lake')"
+        f"ATTACH 'ducklake:postgres:{catalog_url}' AS devworld_lake (DATA_PATH '{data_path}', METADATA_SCHEMA 'devworld_lake')"
     )
 
     logger.info(

@@ -41,6 +41,11 @@ resource "aws_iam_policy" "ecs_execution_secrets" {
           aws_secretsmanager_secret.db_credentials.arn,
           aws_secretsmanager_secret.airflow_secret_key.arn,
           aws_secretsmanager_secret.r2_credentials.arn,
+          aws_secretsmanager_secret.fernet_key.arn,
+          aws_secretsmanager_secret.github_token.arn,
+          aws_secretsmanager_secret.ollama_api_key.arn,
+          aws_secretsmanager_secret.ducklake_catalog_url.arn,
+          aws_secretsmanager_secret.app_db_url.arn,
         ]
       }
     ]

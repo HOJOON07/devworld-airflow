@@ -101,3 +101,31 @@ resource "aws_secretsmanager_secret_version" "r2_credentials" {
     bucket            = "devworld"
   })
 }
+
+resource "aws_secretsmanager_secret" "ducklake_catalog_url" {
+  name        = "${var.project_name}/ducklake-catalog-url"
+  description = "DuckLake catalog connection string (libpq format, airflow_db)"
+
+  tags = {
+    Name = "${var.project_name}-ducklake-catalog-url"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "ducklake_catalog_url" {
+  secret_id     = aws_secretsmanager_secret.ducklake_catalog_url.id
+  secret_string = "host=${aws_db_instance.main.address} port=${aws_db_instance.main.port} dbname=${var.db_name} user=${aws_db_instance.main.username} password=${random_password.db_password.result}"
+}
+
+resource "aws_secretsmanager_secret" "app_db_url" {
+  name        = "${var.project_name}/app-db-url"
+  description = "App DB connection URL (postgresql:// format for dbt reverse_etl)"
+
+  tags = {
+    Name = "${var.project_name}-app-db-url"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "app_db_url" {
+  secret_id     = aws_secretsmanager_secret.app_db_url.id
+  secret_string = "postgresql://${aws_db_instance.main.username}:${random_password.db_password.result}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/app_db"
+}

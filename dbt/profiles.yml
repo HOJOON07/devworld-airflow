@@ -24,3 +24,4 @@ devworld:
           type: postgres
           alias: app_db
           read_only: false
+      threads: 1

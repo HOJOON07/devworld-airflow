@@ -17,7 +17,7 @@ from common import DEFAULT_ARGS
 @dag(
     dag_id="github_collect",
     default_args=DEFAULT_ARGS,
-    schedule="0 21 * * *",
+    schedule="0 3,15 * * *",
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["github", "collect"],
