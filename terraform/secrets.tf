@@ -129,3 +129,63 @@ resource "aws_secretsmanager_secret_version" "app_db_url" {
   secret_id     = aws_secretsmanager_secret.app_db_url.id
   secret_string = "postgresql://${aws_db_instance.main.username}:${random_password.db_password.result}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/app_db"
 }
+
+# ─── NestJS API Secrets ───
+
+resource "aws_secretsmanager_secret" "nestjs_platform_db" {
+  name        = "${var.project_name}/nestjs-platform-db"
+  description = "NestJS platform database name"
+
+  tags = {
+    Name = "${var.project_name}-nestjs-platform-db"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "nestjs_platform_db" {
+  secret_id = aws_secretsmanager_secret.nestjs_platform_db.id
+  secret_string = jsonencode({
+    dbname = "platform_db"
+  })
+}
+
+resource "aws_secretsmanager_secret" "nestjs_app_db" {
+  name        = "${var.project_name}/nestjs-app-db"
+  description = "NestJS pipeline (app_db) database name"
+
+  tags = {
+    Name = "${var.project_name}-nestjs-app-db"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "nestjs_app_db" {
+  secret_id = aws_secretsmanager_secret.nestjs_app_db.id
+  secret_string = jsonencode({
+    dbname = "app_db"
+  })
+}
+
+resource "aws_secretsmanager_secret" "nestjs_jwt_secrets" {
+  name        = "${var.project_name}/nestjs-jwt-secrets"
+  description = "NestJS JWT access and refresh secrets"
+
+  tags = {
+    Name = "${var.project_name}-nestjs-jwt-secrets"
+  }
+}
+
+# JWT secrets — terraform apply 후 수동 설정:
+# aws secretsmanager put-secret-value --secret-id devworld/nestjs-jwt-secrets \
+#   --secret-string '{"access_secret":"<32+ chars>","refresh_secret":"<32+ chars>"}'
+
+resource "aws_secretsmanager_secret" "nestjs_github_oauth" {
+  name        = "${var.project_name}/nestjs-github-oauth"
+  description = "NestJS GitHub OAuth client credentials"
+
+  tags = {
+    Name = "${var.project_name}-nestjs-github-oauth"
+  }
+}
+
+# GitHub OAuth — terraform apply 후 수동 설정:
+# aws secretsmanager put-secret-value --secret-id devworld/nestjs-github-oauth \
+#   --secret-string '{"client_id":"xxx","client_secret":"xxx"}'

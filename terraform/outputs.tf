@@ -37,3 +37,8 @@ output "cloudwatch_log_group" {
   description = "CloudWatch log group name"
   value       = aws_cloudwatch_log_group.airflow.name
 }
+
+output "nestjs_ecr_repository_url" {
+  description = "NestJS API ECR repository URL"
+  value       = aws_ecr_repository.nestjs_api.repository_url
+}

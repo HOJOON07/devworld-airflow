@@ -125,3 +125,38 @@ resource "aws_cloudwatch_metric_alarm" "ecs_scheduler_running" {
     Name = "${var.project_name}-scheduler-running-alarm"
   }
 }
+
+# ─── NestJS API ───
+
+resource "aws_cloudwatch_log_group" "nestjs_api" {
+  name              = "/ecs/${var.project_name}-nestjs-api"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api-logs"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ecs_nestjs_api_running" {
+  alarm_name          = "${var.project_name}-nestjs-api-not-running"
+  alarm_description   = "NestJS API has no running tasks"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "RunningTaskCount"
+  namespace           = "ECS/ContainerInsights"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 1
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.nestjs_api.name
+  }
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api-running-alarm"
+  }
+}

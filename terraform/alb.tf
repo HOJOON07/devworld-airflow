@@ -79,3 +79,72 @@ resource "aws_lb_listener" "https" {
     Name = "${var.project_name}-https-listener"
   }
 }
+
+# ─── NestJS API ───
+
+resource "aws_lb_target_group" "nestjs_api" {
+  name        = "${var.project_name}-nestjs-api-tg"
+  port        = 5500
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    path                = "/health"
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    timeout             = 10
+    interval            = 30
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api-tg"
+  }
+}
+
+# Host-based routing: api.devworld.cloud → NestJS
+resource "aws_lb_listener_rule" "nestjs_api_https" {
+  count        = var.acm_certificate_arn != "" ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.nestjs_api.arn
+  }
+
+  condition {
+    host_header {
+      values = ["api.devworld.cloud"]
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api-rule"
+  }
+}
+
+# Host-based routing for HTTP (fallback/dev)
+resource "aws_lb_listener_rule" "nestjs_api_http" {
+  count        = var.acm_certificate_arn != "" ? 0 : 1
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.nestjs_api.arn
+  }
+
+  condition {
+    host_header {
+      values = ["api.devworld.cloud"]
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api-http-rule"
+  }
+}

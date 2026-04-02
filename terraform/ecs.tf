@@ -281,3 +281,143 @@ resource "aws_ecs_service" "scheduler" {
     Name = "${var.project_name}-scheduler-service"
   }
 }
+
+# ─── NestJS API ───
+
+# NestJS API Task Definition
+resource "aws_ecs_task_definition" "nestjs_api" {
+  family                   = "${var.project_name}-nestjs-api"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.nestjs_api_cpu
+  memory                   = var.nestjs_api_memory
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "nestjs-api"
+      image = "${aws_ecr_repository.nestjs_api.repository_url}:latest"
+
+      portMappings = [
+        {
+          containerPort = 5500
+          protocol      = "tcp"
+        }
+      ]
+
+      environment = [
+        { name = "NODE_ENV", value = "production" },
+        { name = "PORT", value = "5500" },
+        { name = "FRONTEND_URL", value = "https://devworld.cloud" },
+      ]
+
+      secrets = [
+        {
+          name      = "DATABASE_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "DATABASE_PORT"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "DATABASE_USERNAME"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+        },
+        {
+          name      = "DATABASE_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DATABASE_NAME"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_platform_db.arn}:dbname::"
+        },
+        {
+          name      = "PIPELINE_DB_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "PIPELINE_DB_PORT"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "PIPELINE_DB_USERNAME"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+        },
+        {
+          name      = "PIPELINE_DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "PIPELINE_DB_NAME"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_app_db.arn}:dbname::"
+        },
+        {
+          name      = "JWT_ACCESS_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_jwt_secrets.arn}:access_secret::"
+        },
+        {
+          name      = "JWT_REFRESH_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_jwt_secrets.arn}:refresh_secret::"
+        },
+        {
+          name      = "GITHUB_CLIENT_ID"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_github_oauth.arn}:client_id::"
+        },
+        {
+          name      = "GITHUB_CLIENT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_github_oauth.arn}:client_secret::"
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.nestjs_api.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "nestjs-api"
+        }
+      }
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:5500/health || exit 1"]
+        interval    = 30
+        timeout     = 10
+        retries     = 3
+        startPeriod = 30
+      }
+    }
+  ])
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api"
+  }
+}
+
+# NestJS API Service
+resource "aws_ecs_service" "nestjs_api" {
+  name            = "${var.project_name}-nestjs-api"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.nestjs_api.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.nestjs_api.arn
+    container_name   = "nestjs-api"
+    container_port   = 5500
+  }
+
+  depends_on = [aws_lb_listener.http]
+
+  tags = {
+    Name = "${var.project_name}-nestjs-api-service"
+  }
+}

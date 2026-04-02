@@ -111,3 +111,16 @@ variable "storage_region" {
   type        = string
   default     = "auto"
 }
+
+# NestJS API ECS
+variable "nestjs_api_cpu" {
+  description = "CPU units for NestJS API (1024 = 1 vCPU)"
+  type        = number
+  default     = 512
+}
+
+variable "nestjs_api_memory" {
+  description = "Memory in MiB for NestJS API"
+  type        = number
+  default     = 1024
+}
