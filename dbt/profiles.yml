@@ -9,6 +9,7 @@ devworld:
         - ducklake
         - httpfs
       settings:
+        s3_region: "{{ env_var('STORAGE_REGION', 'auto') }}"
         s3_endpoint: "{{ env_var('STORAGE_ENDPOINT_URL', 'http://minio:9000') | replace('http://', '') | replace('https://', '') }}"
         s3_access_key_id: "{{ env_var('STORAGE_ACCESS_KEY', 'minioadmin') }}"
         s3_secret_access_key: "{{ env_var('STORAGE_SECRET_KEY', 'minioadmin') }}"

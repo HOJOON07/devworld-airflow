@@ -16,6 +16,11 @@ resource "aws_ecs_task_definition" "api_server" {
   family                   = "${var.project_name}-api-server"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
   cpu                      = var.api_server_cpu
   memory                   = var.api_server_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
@@ -38,8 +43,8 @@ resource "aws_ecs_task_definition" "api_server" {
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
         { name = "PYTHONPATH", value = "/opt/airflow" },
-        { name = "AIRFLOW__CORE__PARALLELISM", value = "8" },
-        { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "4" },
+        { name = "AIRFLOW__CORE__PARALLELISM", value = "2" },
+        { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "2" },
         { name = "AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG", value = "2" },
         { name = "AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL", value = "30" },
         { name = "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", value = "false" },
@@ -52,6 +57,10 @@ resource "aws_ecs_task_definition" "api_server" {
         { name = "OLLAMA_MODEL", value = "qwen3.5:397b" },
         { name = "DB_NAME", value = "app_db" },
         { name = "DB_USER", value = var.db_username },
+        { name = "DUCKLAKE_PG_DBNAME", value = "airflow_db" },
+        
+        { name = "DUCKLAKE_PG_PORT", value = "5432" },
+        { name = "POSTGRES_USER", value = var.db_username },
       ]
 
       secrets = [
@@ -62,6 +71,14 @@ resource "aws_ecs_task_definition" "api_server" {
         {
           name      = "AIRFLOW__WEBSERVER__SECRET_KEY"
           valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API_AUTH__JWT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.airflow_jwt_secret.arn}"
         },
         {
           name      = "AIRFLOW__CORE__FERNET_KEY"
@@ -97,6 +114,14 @@ resource "aws_ecs_task_definition" "api_server" {
         },
         {
           name      = "DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_PG_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "POSTGRES_PASSWORD"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
@@ -119,7 +144,7 @@ resource "aws_ecs_task_definition" "api_server" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+        command     = ["CMD-SHELL", "curl -f http://localhost:8080/api/v2/monitor/health || exit 1"]
         interval    = 30
         timeout     = 10
         retries     = 3
@@ -138,8 +163,13 @@ resource "aws_ecs_task_definition" "scheduler" {
   family                   = "${var.project_name}-scheduler"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = var.scheduler_cpu
-  memory                   = var.scheduler_memory
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+  cpu                      = 2048
+  memory                   = 4096
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
@@ -153,10 +183,11 @@ resource "aws_ecs_task_definition" "scheduler" {
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
         { name = "PYTHONPATH", value = "/opt/airflow" },
-        { name = "AIRFLOW__CORE__PARALLELISM", value = "8" },
-        { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "4" },
+        { name = "AIRFLOW__CORE__PARALLELISM", value = "2" },
+        { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "2" },
         { name = "AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG", value = "2" },
         { name = "AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL", value = "30" },
+        { name = "AIRFLOW__DAG_PROCESSOR__PARSING_TIMEOUT", value = "120" },
         { name = "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", value = "false" },
         { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },
         { name = "RAW_BUCKET", value = "devworld-raw" },
@@ -167,12 +198,28 @@ resource "aws_ecs_task_definition" "scheduler" {
         { name = "OLLAMA_MODEL", value = "qwen3.5:397b" },
         { name = "DB_NAME", value = "app_db" },
         { name = "DB_USER", value = var.db_username },
+        { name = "DUCKLAKE_PG_DBNAME", value = "airflow_db" },
+        
+        { name = "DUCKLAKE_PG_PORT", value = "5432" },
+        { name = "POSTGRES_USER", value = var.db_username },
       ]
 
       secrets = [
         {
           name      = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:connection_string::"
+        },
+        {
+          name      = "AIRFLOW__WEBSERVER__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API_AUTH__JWT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.airflow_jwt_secret.arn}"
         },
         {
           name      = "AIRFLOW__CORE__FERNET_KEY"
@@ -211,6 +258,14 @@ resource "aws_ecs_task_definition" "scheduler" {
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
+          name      = "DUCKLAKE_PG_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "POSTGRES_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
           name      = "DUCKLAKE_CATALOG_URL"
           valueFrom = "${aws_secretsmanager_secret.ducklake_catalog_url.arn}"
         },
@@ -227,6 +282,230 @@ resource "aws_ecs_task_definition" "scheduler" {
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "scheduler"
         }
+      }
+    },
+    {
+      name  = "airflow-dag-processor"
+      image = "${aws_ecr_repository.airflow.repository_url}:latest"
+      command = ["dag-processor"]
+
+      environment = [
+        { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
+        { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "PYTHONPATH", value = "/opt/airflow" },
+        { name = "AIRFLOW__DAG_PROCESSOR__PARSING_TIMEOUT", value = "120" },
+        { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },
+        { name = "RAW_BUCKET", value = "devworld-raw" },
+        { name = "LAKE_BUCKET", value = "devworld-lake" },
+        { name = "STORAGE_REGION", value = var.storage_region },
+        { name = "S3_USE_SSL", value = "true" },
+        { name = "DUCKLAKE_DATA_PATH", value = "s3://devworld-lake/" },
+        { name = "OLLAMA_MODEL", value = "qwen3.5:397b" },
+        { name = "DB_NAME", value = "app_db" },
+        { name = "DB_USER", value = var.db_username },
+        { name = "DUCKLAKE_PG_DBNAME", value = "airflow_db" },
+        
+        { name = "DUCKLAKE_PG_PORT", value = "5432" },
+        { name = "POSTGRES_USER", value = var.db_username },
+      ]
+
+      secrets = [
+        {
+          name      = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:connection_string::"
+        },
+        {
+          name      = "AIRFLOW__WEBSERVER__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API_AUTH__JWT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.airflow_jwt_secret.arn}"
+        },
+        {
+          name      = "AIRFLOW__CORE__FERNET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.fernet_key.arn}"
+        },
+        {
+          name      = "GITHUB_TOKEN"
+          valueFrom = "${aws_secretsmanager_secret.github_token.arn}"
+        },
+        {
+          name      = "OLLAMA_API_KEY"
+          valueFrom = "${aws_secretsmanager_secret.ollama_api_key.arn}"
+        },
+        {
+          name      = "STORAGE_ACCESS_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:access_key_id::"
+        },
+        {
+          name      = "STORAGE_SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:secret_access_key::"
+        },
+        {
+          name      = "STORAGE_ENDPOINT_URL"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:endpoint::"
+        },
+        {
+          name      = "DB_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "DB_PORT"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_PG_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "POSTGRES_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_CATALOG_URL"
+          valueFrom = "${aws_secretsmanager_secret.ducklake_catalog_url.arn}"
+        },
+        {
+          name      = "APP_DB_URL"
+          valueFrom = "${aws_secretsmanager_secret.app_db_url.arn}"
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.airflow.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "dag-processor"
+        }
+      }
+    },
+    {
+      name  = "airflow-execution-api"
+      image = "${aws_ecr_repository.airflow.repository_url}:latest"
+      command = ["api-server"]
+
+      portMappings = [
+        {
+          containerPort = 8080
+          protocol      = "tcp"
+        }
+      ]
+
+      environment = [
+        { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
+        { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "PYTHONPATH", value = "/opt/airflow" },
+        { name = "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", value = "false" },
+        { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },
+        { name = "RAW_BUCKET", value = "devworld-raw" },
+        { name = "LAKE_BUCKET", value = "devworld-lake" },
+        { name = "STORAGE_REGION", value = var.storage_region },
+        { name = "S3_USE_SSL", value = "true" },
+        { name = "DUCKLAKE_DATA_PATH", value = "s3://devworld-lake/" },
+        { name = "OLLAMA_MODEL", value = "qwen3.5:397b" },
+        { name = "DB_NAME", value = "app_db" },
+        { name = "DB_USER", value = var.db_username },
+        { name = "DUCKLAKE_PG_DBNAME", value = "airflow_db" },
+        { name = "DUCKLAKE_PG_PORT", value = "5432" },
+        { name = "POSTGRES_USER", value = var.db_username },
+      ]
+
+      secrets = [
+        {
+          name      = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:connection_string::"
+        },
+        {
+          name      = "AIRFLOW__WEBSERVER__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API__SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.airflow_secret_key.arn}"
+        },
+        {
+          name      = "AIRFLOW__API_AUTH__JWT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.airflow_jwt_secret.arn}"
+        },
+        {
+          name      = "AIRFLOW__CORE__FERNET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.fernet_key.arn}"
+        },
+        {
+          name      = "GITHUB_TOKEN"
+          valueFrom = "${aws_secretsmanager_secret.github_token.arn}"
+        },
+        {
+          name      = "OLLAMA_API_KEY"
+          valueFrom = "${aws_secretsmanager_secret.ollama_api_key.arn}"
+        },
+        {
+          name      = "STORAGE_ACCESS_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:access_key_id::"
+        },
+        {
+          name      = "STORAGE_SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:secret_access_key::"
+        },
+        {
+          name      = "STORAGE_ENDPOINT_URL"
+          valueFrom = "${aws_secretsmanager_secret.r2_credentials.arn}:endpoint::"
+        },
+        {
+          name      = "DB_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "DB_PORT"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_PG_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "POSTGRES_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DUCKLAKE_CATALOG_URL"
+          valueFrom = "${aws_secretsmanager_secret.ducklake_catalog_url.arn}"
+        },
+        {
+          name      = "APP_DB_URL"
+          valueFrom = "${aws_secretsmanager_secret.app_db_url.arn}"
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.airflow.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "execution-api"
+        }
+      }
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:8080/api/v2/monitor/health || exit 1"]
+        interval    = 30
+        timeout     = 10
+        retries     = 3
+        startPeriod = 60
       }
     }
   ])
@@ -289,6 +568,11 @@ resource "aws_ecs_task_definition" "nestjs_api" {
   family                   = "${var.project_name}-nestjs-api"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
   cpu                      = var.nestjs_api_cpu
   memory                   = var.nestjs_api_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
@@ -310,27 +594,37 @@ resource "aws_ecs_task_definition" "nestjs_api" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "5500" },
         { name = "FRONTEND_URL", value = "https://devworld.cloud" },
+        { name = "GITHUB_CALLBACK_URL", value = "https://api.devworld.cloud/auth/github/callback" },
+        { name = "COOKIE_DOMAIN", value = ".devworld.cloud" },
       ]
 
       secrets = [
         {
-          name      = "DATABASE_HOST"
+          name      = "DB_HOST"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
         },
         {
-          name      = "DATABASE_PORT"
+          name      = "DB_PORT"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
         },
         {
-          name      = "DATABASE_USERNAME"
+          name      = "DB_USERNAME"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
         },
         {
-          name      = "DATABASE_PASSWORD"
+          name      = "DB_PASSWORD"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
-          name      = "DATABASE_NAME"
+          name      = "DUCKLAKE_PG_HOST"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "POSTGRES_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "DB_NAME"
           valueFrom = "${aws_secretsmanager_secret.nestjs_platform_db.arn}:dbname::"
         },
         {
@@ -368,6 +662,10 @@ resource "aws_ecs_task_definition" "nestjs_api" {
         {
           name      = "GITHUB_CLIENT_SECRET"
           valueFrom = "${aws_secretsmanager_secret.nestjs_github_oauth.arn}:client_secret::"
+        },
+        {
+          name      = "ENCRYPTION_KEY"
+          valueFrom = "${aws_secretsmanager_secret.nestjs_encryption_key.arn}"
         },
       ]
 

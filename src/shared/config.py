@@ -39,7 +39,7 @@ class StorageConfig:
         )
     )
     region: str = field(
-        default_factory=lambda: os.environ.get("STORAGE_REGION", "us-east-1")
+        default_factory=lambda: os.environ.get("STORAGE_REGION", "auto")
     )
 
     @property

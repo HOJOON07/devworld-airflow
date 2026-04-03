@@ -18,7 +18,7 @@ resource "aws_lb_target_group" "airflow" {
   target_type = "ip"
 
   health_check {
-    path                = "/health"
+    path                = "/api/v2/monitor/health"
     protocol            = "HTTP"
     port                = "traffic-port"
     healthy_threshold   = 3

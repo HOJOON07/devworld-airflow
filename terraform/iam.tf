@@ -40,12 +40,18 @@ resource "aws_iam_policy" "ecs_execution_secrets" {
         Resource = [
           aws_secretsmanager_secret.db_credentials.arn,
           aws_secretsmanager_secret.airflow_secret_key.arn,
+          aws_secretsmanager_secret.airflow_jwt_secret.arn,
           aws_secretsmanager_secret.r2_credentials.arn,
           aws_secretsmanager_secret.fernet_key.arn,
           aws_secretsmanager_secret.github_token.arn,
           aws_secretsmanager_secret.ollama_api_key.arn,
           aws_secretsmanager_secret.ducklake_catalog_url.arn,
           aws_secretsmanager_secret.app_db_url.arn,
+          aws_secretsmanager_secret.nestjs_platform_db.arn,
+          aws_secretsmanager_secret.nestjs_app_db.arn,
+          aws_secretsmanager_secret.nestjs_jwt_secrets.arn,
+          aws_secretsmanager_secret.nestjs_github_oauth.arn,
+          aws_secretsmanager_secret.nestjs_encryption_key.arn,
         ]
       }
     ]
@@ -103,4 +109,58 @@ resource "aws_iam_policy" "ecs_task_secrets" {
 resource "aws_iam_role_policy_attachment" "ecs_task_secrets" {
   role       = aws_iam_role.ecs_task.name
   policy_arn = aws_iam_policy.ecs_task_secrets.arn
+}
+
+resource "aws_iam_policy" "ecs_task_ssm" {
+  name        = "${var.project_name}-ecs-task-ssm"
+  description = "Allow ECS Exec via SSM"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel",
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_ssm" {
+  role       = aws_iam_role.ecs_task.name
+  policy_arn = aws_iam_policy.ecs_task_ssm.arn
+}
+
+resource "aws_iam_policy" "ecs_task_logs" {
+  name        = "${var.project_name}-ecs-task-logs"
+  description = "Allow Airflow tasks to write remote logs to CloudWatch"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+        ]
+        Resource = [
+          "${aws_cloudwatch_log_group.airflow_task_logs.arn}:*",
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_logs" {
+  role       = aws_iam_role.ecs_task.name
+  policy_arn = aws_iam_policy.ecs_task_logs.arn
 }

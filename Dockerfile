@@ -14,4 +14,8 @@ COPY --chown=airflow:root src/ /opt/airflow/src/
 COPY --chown=airflow:root dbt/ /opt/airflow/dbt/
 COPY --chown=airflow:root config/ /opt/airflow/config/
 
+COPY --chown=airflow:root entrypoint.sh /opt/airflow/entrypoint.sh
+
 ENV AIRFLOW_HOME=/opt/airflow
+
+ENTRYPOINT ["/opt/airflow/entrypoint.sh"]

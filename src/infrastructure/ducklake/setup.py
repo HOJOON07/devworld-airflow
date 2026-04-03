@@ -36,6 +36,7 @@ def create_ducklake_connection(config: Config | None = None) -> duckdb.DuckDBPyC
     # Configure S3 for MinIO/R2
     storage = config.storage
     endpoint = _strip_protocol(storage.endpoint_url)
+    conn.execute(f"SET s3_region='{_esc(storage.region)}'")
     conn.execute(f"SET s3_endpoint='{_esc(endpoint)}'")
     conn.execute(f"SET s3_access_key_id='{_esc(storage.access_key)}'")
     conn.execute(f"SET s3_secret_access_key='{_esc(storage.secret_key)}'")

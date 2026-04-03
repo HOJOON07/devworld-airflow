@@ -39,6 +39,25 @@ resource "random_password" "airflow_secret_key" {
   special = false
 }
 
+resource "aws_secretsmanager_secret" "airflow_jwt_secret" {
+  name        = "${var.project_name}/airflow-jwt-secret"
+  description = "Airflow API Auth JWT secret for Execution API authentication"
+
+  tags = {
+    Name = "${var.project_name}-airflow-jwt-secret"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "airflow_jwt_secret" {
+  secret_id     = aws_secretsmanager_secret.airflow_jwt_secret.id
+  secret_string = random_password.airflow_jwt_secret.result
+}
+
+resource "random_password" "airflow_jwt_secret" {
+  length  = 64
+  special = false
+}
+
 resource "random_password" "fernet_key" {
   length  = 32
   special = false
@@ -189,3 +208,13 @@ resource "aws_secretsmanager_secret" "nestjs_github_oauth" {
 # GitHub OAuth — terraform apply 후 수동 설정:
 # aws secretsmanager put-secret-value --secret-id devworld/nestjs-github-oauth \
 #   --secret-string '{"client_id":"xxx","client_secret":"xxx"}'
+
+# NestJS Encryption Key (for user AI keys encryption)
+resource "aws_secretsmanager_secret" "nestjs_encryption_key" {
+  name        = "${var.project_name}/nestjs-encryption-key"
+  description = "NestJS encryption key for user AI keys"
+
+  tags = {
+    Name = "${var.project_name}-nestjs-encryption-key"
+  }
+}

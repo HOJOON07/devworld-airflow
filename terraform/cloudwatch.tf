@@ -28,6 +28,15 @@ resource "aws_cloudwatch_log_group" "airflow" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "airflow_task_logs" {
+  name              = "/airflow/${var.project_name}/task-logs"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.project_name}-task-logs"
+  }
+}
+
 # RDS CPU Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   alarm_name          = "${var.project_name}-rds-cpu-high"
