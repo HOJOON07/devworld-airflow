@@ -42,6 +42,11 @@ devworld.duckdb
 .DS_Store
 Thumbs.db
 
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+
 # Secrets
 .env
 .env.local
