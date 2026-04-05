@@ -42,6 +42,8 @@ resource "aws_ecs_task_definition" "api_server" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "AIRFLOW__CORE__AUTH_MANAGER", value = "airflow_file_auth_manager.FileAuthManager" },
+        { name = "AIRFLOW_FILE_AUTH_USERS_FILE", value = "/opt/airflow/config/users.yaml" },
         { name = "PYTHONPATH", value = "/opt/airflow" },
         { name = "AIRFLOW__CORE__PARALLELISM", value = "2" },
         { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "2" },
@@ -182,6 +184,8 @@ resource "aws_ecs_task_definition" "scheduler" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "AIRFLOW__CORE__AUTH_MANAGER", value = "airflow_file_auth_manager.FileAuthManager" },
+        { name = "AIRFLOW_FILE_AUTH_USERS_FILE", value = "/opt/airflow/config/users.yaml" },
         { name = "PYTHONPATH", value = "/opt/airflow" },
         { name = "AIRFLOW__CORE__PARALLELISM", value = "2" },
         { name = "AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG", value = "2" },
@@ -292,6 +296,8 @@ resource "aws_ecs_task_definition" "scheduler" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "AIRFLOW__CORE__AUTH_MANAGER", value = "airflow_file_auth_manager.FileAuthManager" },
+        { name = "AIRFLOW_FILE_AUTH_USERS_FILE", value = "/opt/airflow/config/users.yaml" },
         { name = "PYTHONPATH", value = "/opt/airflow" },
         { name = "AIRFLOW__DAG_PROCESSOR__PARSING_TIMEOUT", value = "120" },
         { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },
@@ -404,6 +410,8 @@ resource "aws_ecs_task_definition" "scheduler" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+        { name = "AIRFLOW__CORE__AUTH_MANAGER", value = "airflow_file_auth_manager.FileAuthManager" },
+        { name = "AIRFLOW_FILE_AUTH_USERS_FILE", value = "/opt/airflow/config/users.yaml" },
         { name = "PYTHONPATH", value = "/opt/airflow" },
         { name = "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", value = "false" },
         { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "http://localhost:8080/execution/" },

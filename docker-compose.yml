@@ -16,7 +16,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 30
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-api-server:8080/execution/'
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'false'
-    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
+    AIRFLOW__CORE__AUTH_MANAGER: airflow_file_auth_manager.FileAuthManager
+    AIRFLOW_FILE_AUTH_USERS_FILE: /opt/airflow/config/users.yaml
     PYTHONPATH: /opt/airflow
     DUCKLAKE_CATALOG_URL: host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD}
     DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://devworld-lake}

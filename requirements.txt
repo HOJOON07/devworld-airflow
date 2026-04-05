@@ -3,7 +3,7 @@ apache-airflow-providers-standard>=1.0.0
 apache-airflow-providers-postgres>=5.0.0
 apache-airflow-providers-amazon>=9.0.0
 apache-airflow-providers-http>=4.0.0
-apache-airflow-providers-fab>=2.0.0
+airflow-file-auth-manager
 
 # Pipeline
 dlt[postgres,filesystem,ducklake]>=1.19.0
